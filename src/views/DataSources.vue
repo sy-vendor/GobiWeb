@@ -15,6 +15,11 @@
         <el-table-column prop="Port" label="端口" />
         <el-table-column prop="Username" label="用户名" />
         <el-table-column prop="Database" label="数据库名" />
+        <el-table-column prop="IsPublic" label="是否公开">
+          <template #default="{ row }">
+            <el-tag :type="row.IsPublic ? 'success' : 'info'">{{ row.IsPublic ? '是' : '否' }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button-group>
@@ -33,24 +38,27 @@
         <el-form-item label="类型" prop="type">
           <el-select v-model="currentDS.type" style="width: 100%">
             <el-option label="MySQL" value="mysql" />
-            <el-option label="PostgreSQL" value="postgresql" />
-            <el-option label="ClickHouse" value="clickhouse" />
+            <el-option label="PostgreSQL" value="postgres" />
+            <el-option label="SQLite" value="sqlite" />
           </el-select>
         </el-form-item>
-        <el-form-item label="主机" prop="host">
+        <el-form-item v-if="currentDS.type !== 'sqlite'" label="主机" prop="host">
           <el-input v-model="currentDS.host" />
         </el-form-item>
-        <el-form-item label="端口" prop="port">
+        <el-form-item v-if="currentDS.type !== 'sqlite'" label="端口" prop="port">
           <el-input v-model="currentDS.port" />
         </el-form-item>
-        <el-form-item label="用户名" prop="username">
+        <el-form-item :label="currentDS.type === 'sqlite' ? '数据库文件路径' : '数据库名'" prop="database">
+          <el-input v-model="currentDS.database" />
+        </el-form-item>
+        <el-form-item v-if="currentDS.type !== 'sqlite'" label="用户名" prop="username">
           <el-input v-model="currentDS.username" />
         </el-form-item>
-        <el-form-item label="密码" prop="password">
+        <el-form-item v-if="currentDS.type !== 'sqlite'" label="密码" prop="password">
           <el-input v-model="currentDS.password" type="password" show-password />
         </el-form-item>
-        <el-form-item label="数据库名" prop="database">
-          <el-input v-model="currentDS.database" />
+        <el-form-item label="是否公开" prop="IsPublic">
+          <el-switch v-model="currentDS.IsPublic" active-text="是" inactive-text="否" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -79,7 +87,8 @@ const currentDS = reactive({
   port: '',
   username: '',
   password: '',
-  database: ''
+  database: '',
+  IsPublic: false
 })
 const rules = {
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
@@ -108,7 +117,8 @@ const handleCreate = () => {
     port: '',
     username: '',
     password: '',
-    database: ''
+    database: '',
+    IsPublic: false
   })
   dialogVisible.value = true
 }
@@ -122,7 +132,8 @@ const handleEdit = (ds) => {
     port: ds.Port,
     username: ds.Username,
     password: '',
-    database: ds.Database
+    database: ds.Database,
+    IsPublic: ds.IsPublic
   })
   dialogVisible.value = true
 }
@@ -138,7 +149,19 @@ const handleDelete = async (ds) => {
 }
 const handleSave = async () => {
   try {
-    const payload = { ...currentDS, port: Number(currentDS.port) }
+    let payload = { type: currentDS.type, database: currentDS.database, IsPublic: currentDS.IsPublic }
+    if (currentDS.type !== 'sqlite') {
+      payload = {
+        ...payload,
+        host: currentDS.host,
+        port: Number(currentDS.port),
+        username: currentDS.username,
+        password: currentDS.password,
+        name: currentDS.name
+      }
+    } else {
+      payload.name = currentDS.name
+    }
     if (dialogType.value === 'create') {
       await axios.post('/api/datasources', payload)
       ElMessage.success('创建成功')
