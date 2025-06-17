@@ -144,11 +144,7 @@ npm run build
 4. 推送到分支 (git push origin feature/AmazingFeature)
 5. 开启一个 Pull Request
 
-## 许可证
-
-[MIT](LICENSE)
-
 ## 联系方式
 
-- 项目维护者：[Your Name]
-- 邮箱：[Your Email]
+- 项目维护者：[sy-vendor]
+- 邮箱：[sytourist@gmail.com]
