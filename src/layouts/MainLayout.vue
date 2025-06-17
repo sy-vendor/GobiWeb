@@ -79,10 +79,30 @@ const handleLogout = () => {
   height: 100%;
   
   .el-aside {
-    background-color: #304156;
+    background-color: transparent;
+    padding: 0;
+    border-right: none;
     
     .el-menu {
+      background-color: #304156;
+      color: #fff;
       border-right: none;
+      min-height: 100vh;
+      transition: width 0.2s;
+      
+      .el-menu-item {
+        color: #fff;
+        &:hover, &.is-active {
+          background-color: #263445;
+          color: #409eff;
+        }
+      }
+      .el-sub-menu__title {
+        color: #fff;
+      }
+      .el-icon {
+        color: #fff;
+      }
     }
   }
   

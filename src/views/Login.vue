@@ -6,7 +6,7 @@
       </template>
       
       <el-form
-        ref="loginForm"
+        ref="loginFormRef"
         :model="loginForm"
         :rules="rules"
         label-position="top"
@@ -15,7 +15,7 @@
           <el-input
             v-model="loginForm.username"
             placeholder="请输入用户名"
-            prefix-icon="User"
+            :prefix-icon="User"
           />
         </el-form-item>
         
@@ -24,8 +24,9 @@
             v-model="loginForm.password"
             type="password"
             placeholder="请输入密码"
-            prefix-icon="Lock"
+            :prefix-icon="Lock"
             show-password
+            @keyup.enter="handleLogin"
           />
         </el-form-item>
         
@@ -48,10 +49,12 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { User, Lock } from '@element-plus/icons-vue'
 import axios from 'axios'
 
 const router = useRouter()
 const loading = ref(false)
+const loginFormRef = ref(null)
 
 const loginForm = reactive({
   username: '',
@@ -60,24 +63,38 @@ const loginForm = reactive({
 
 const rules = {
   username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' }
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 3, max: 20, message: '长度在 3 到 20 个字符', trigger: 'blur' }
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' }
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, message: '密码长度不能小于 6 个字符', trigger: 'blur' }
   ]
 }
 
 const handleLogin = async () => {
+  if (!loginFormRef.value) return
+  
   try {
+    await loginFormRef.value.validate()
     loading.value = true
+    
     const response = await axios.post('/api/auth/login', loginForm)
-    const { token } = response.data
+    const { token, user } = response.data
     
     localStorage.setItem('token', token)
+    localStorage.setItem('user', JSON.stringify(user))
+    
     ElMessage.success('登录成功')
     router.push('/')
   } catch (error) {
-    ElMessage.error(error.response?.data?.message || '登录失败')
+    if (error.response) {
+      ElMessage.error(error.response.data?.message || '登录失败')
+    } else if (error.message) {
+      ElMessage.error(error.message)
+    } else {
+      ElMessage.error('登录失败，请稍后重试')
+    }
   } finally {
     loading.value = false
   }
@@ -99,10 +116,13 @@ const handleLogin = async () => {
       text-align: center;
       margin: 0;
       color: #303133;
+      font-size: 24px;
+      font-weight: 500;
     }
     
     .login-button {
       width: 100%;
+      margin-top: 10px;
     }
   }
 }
