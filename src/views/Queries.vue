@@ -10,10 +10,10 @@
     
     <el-card class="query-list">
       <el-table :data="queries" style="width: 100%">
-        <el-table-column prop="name" label="查询名称" />
-        <el-table-column prop="description" label="描述" />
-        <el-table-column prop="createdAt" label="创建时间" width="180" />
-        <el-table-column prop="updatedAt" label="更新时间" width="180" />
+        <el-table-column prop="Name" label="查询名称" />
+        <el-table-column prop="Description" label="描述" />
+        <el-table-column prop="CreatedAt" label="创建时间" width="180" :formatter="formatDate" />
+        <el-table-column prop="UpdatedAt" label="更新时间" width="180" :formatter="formatDate" />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button-group>
@@ -64,6 +64,12 @@
             placeholder="请输入SQL查询语句"
           />
         </el-form-item>
+        
+        <el-form-item label="数据源" prop="data_source_id">
+          <el-select v-model="currentQuery.data_source_id" style="width: 100%" placeholder="请选择数据源">
+            <el-option v-for="ds in dataSources" :key="ds.ID" :label="ds.Name" :value="ds.ID" />
+          </el-select>
+        </el-form-item>
       </el-form>
       
       <template #footer>
@@ -95,9 +101,10 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import axios from 'axios'
+import { lo } from 'element-plus/es/locales.mjs'
 
 const queries = ref([])
 const dialogVisible = ref(false)
@@ -105,12 +112,14 @@ const dialogType = ref('create')
 const resultDialogVisible = ref(false)
 const queryResult = ref([])
 const resultColumns = ref([])
+const dataSources = ref([])
 
 const currentQuery = reactive({
   id: null,
   name: '',
   description: '',
-  sql: ''
+  sql: '',
+  data_source_id: null
 })
 
 const rules = {
@@ -131,68 +140,98 @@ const fetchQueries = async () => {
   }
 }
 
+const fetchDataSources = async () => {
+  try {
+    const res = await axios.get('/api/datasources')
+    dataSources.value = res.data
+  } catch (e) {
+    ElMessage.error('获取数据源失败')
+  }
+}
+
 const handleCreate = () => {
   dialogType.value = 'create'
-  currentQuery.id = null
-  currentQuery.name = ''
-  currentQuery.description = ''
-  currentQuery.sql = ''
+  Object.assign(currentQuery, {
+    id: null,
+    name: '',
+    description: '',
+    sql: '',
+    data_source_id: null
+  })
   dialogVisible.value = true
 }
 
 const handleEdit = (row) => {
   dialogType.value = 'edit'
-  Object.assign(currentQuery, row)
+  Object.assign(currentQuery, {
+    id: row.ID,
+    name: row.Name,
+    description: row.Description,
+    sql: row.SQL,
+    data_source_id: row.DataSourceID
+  })
   dialogVisible.value = true
 }
 
 const handleDelete = async (row) => {
   try {
-    await ElMessageBox.confirm('确定要删除这个查询吗？', '警告', {
-      type: 'warning'
-    })
-    
-    await axios.delete(`/api/queries/${row.id}`)
+    await ElMessageBox.confirm('确定要删除这个查询吗？', '警告', { type: 'warning' })
+    await axios.delete(`/api/queries/${row.ID}`)
     ElMessage.success('删除成功')
     fetchQueries()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除失败')
-    }
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败')
   }
 }
 
 const handleExecute = async (row) => {
   try {
-    const response = await axios.post(`/api/queries/${row.id}/execute`)
-    queryResult.value = response.data.rows
-    if (queryResult.value.length > 0) {
+    const res = await axios.post(`/api/queries/${row.ID}/execute`)
+    queryResult.value = res.data.data
+    if (queryResult.value && queryResult.value.length > 0) {
       resultColumns.value = Object.keys(queryResult.value[0])
     }
     resultDialogVisible.value = true
-  } catch (error) {
-    ElMessage.error('执行查询失败')
+    ElMessage.success('执行成功')
+  } catch (e) {
+    ElMessage.error('执行失败')
   }
 }
 
 const handleSave = async () => {
   try {
+    const payload = {
+      name: currentQuery.name,
+      description: currentQuery.description,
+      sql: currentQuery.sql,
+      data_source_id: currentQuery.data_source_id
+    }
     if (dialogType.value === 'create') {
-      await axios.post('/api/queries', currentQuery)
+      await axios.post('/api/queries', payload)
       ElMessage.success('创建成功')
     } else {
-      await axios.put(`/api/queries/${currentQuery.id}`, currentQuery)
+      await axios.put(`/api/queries/${currentQuery.id}`, payload)
       ElMessage.success('更新成功')
     }
     dialogVisible.value = false
     fetchQueries()
-  } catch (error) {
-    ElMessage.error(dialogType.value === 'create' ? '创建失败' : '更新失败')
+  } catch (e) {
+    ElMessage.error('保存失败')
   }
 }
 
-// 初始化
-fetchQueries()
+function formatDate(row, column, cellValue) {
+  if (!cellValue) return ''
+  const date = new Date(cellValue)
+  if (isNaN(date.getTime())) return cellValue
+  const pad = n => n.toString().padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+onMounted(() => {
+  fetchQueries()
+  fetchDataSources()
+})
 </script>
 
 <style lang="scss" scoped>
