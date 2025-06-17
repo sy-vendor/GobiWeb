@@ -23,6 +23,10 @@
           <el-icon><User /></el-icon>
           <span>用户管理</span>
         </el-menu-item>
+        <el-menu-item index="/datasources">
+          <el-icon><Connection /></el-icon>
+          <span>数据源管理</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     
