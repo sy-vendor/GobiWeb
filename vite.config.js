@@ -17,4 +17,11 @@ export default defineConfig({
       },
     },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        implementation: require('node-sass')
+      }
+    }
+  }
 }) 

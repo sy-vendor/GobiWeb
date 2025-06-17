@@ -9,7 +9,7 @@
               <el-icon><Document /></el-icon>
             </div>
           </template>
-          <div class="card-value">{{ stats.queryCount }}</div>
+          <div class="card-value">{{ dashboardData.queryCount }}</div>
         </el-card>
       </el-col>
       
@@ -21,7 +21,7 @@
               <el-icon><PieChart /></el-icon>
             </div>
           </template>
-          <div class="card-value">{{ stats.chartCount }}</div>
+          <div class="card-value">{{ dashboardData.chartCount }}</div>
         </el-card>
       </el-col>
       
@@ -33,7 +33,7 @@
               <el-icon><User /></el-icon>
             </div>
           </template>
-          <div class="card-value">{{ stats.userCount }}</div>
+          <div class="card-value">{{ dashboardData.userCount }}</div>
         </el-card>
       </el-col>
       
@@ -45,7 +45,7 @@
               <el-icon><Timer /></el-icon>
             </div>
           </template>
-          <div class="card-value">{{ stats.todayQueryCount }}</div>
+          <div class="card-value">{{ dashboardData.todayQueryCount }}</div>
         </el-card>
       </el-col>
     </el-row>
@@ -85,22 +85,33 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 
-const stats = ref({
+const dashboardData = ref({
   queryCount: 0,
   chartCount: 0,
   userCount: 0,
-  todayQueryCount: 0
+  todayQueryCount: 0,
+  // 你可以根据实际接口字段补充其他默认值
 })
 
 const popularQueries = ref([])
 
 const fetchDashboardData = async () => {
   try {
-    const response = await axios.get('/api/dashboard/stats')
-    stats.value = response.data.stats
-    popularQueries.value = response.data.popularQueries
-  } catch (error) {
-    console.error('Failed to fetch dashboard data:', error)
+    const res = await axios.get('/api/dashboard/stats')
+    dashboardData.value = res.data || {
+      queryCount: 0,
+      chartCount: 0,
+      userCount: 0,
+      todayQueryCount: 0,
+    }
+    popularQueries.value = res.data.popularQueries
+  } catch (e) {
+    dashboardData.value = {
+      queryCount: 0,
+      chartCount: 0,
+      userCount: 0,
+      todayQueryCount: 0,
+    }
   }
 }
 

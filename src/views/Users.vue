@@ -19,8 +19,8 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" width="180" />
-        <el-table-column prop="lastLoginAt" label="最后登录" width="180" />
+        <el-table-column prop="created_at" label="创建时间" width="180" :formatter="formatDate" />
+        <el-table-column prop="last_login" label="最后登录" width="180" :formatter="formatDate" />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button-group>
@@ -262,7 +262,12 @@ const handleResetPasswordSave = async () => {
 const handleSave = async () => {
   try {
     if (dialogType.value === 'create') {
-      await axios.post('/api/users', currentUser)
+      await axios.post('/api/auth/register', {
+        username: currentUser.username,
+        password: currentUser.password,
+        email: currentUser.email,
+        is_admin: currentUser.role === 'admin'
+      })
       ElMessage.success('创建成功')
     } else {
       await axios.put(`/api/users/${currentUser.id}`, currentUser)
@@ -273,6 +278,14 @@ const handleSave = async () => {
   } catch (error) {
     ElMessage.error(dialogType.value === 'create' ? '创建失败' : '更新失败')
   }
+}
+
+function formatDate(row, column, cellValue) {
+  if (!cellValue) return ''
+  const date = new Date(cellValue)
+  if (isNaN(date.getTime())) return cellValue
+  const pad = n => n.toString().padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
 // 初始化
