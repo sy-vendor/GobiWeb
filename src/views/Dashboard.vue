@@ -9,7 +9,7 @@
               <el-icon><Document /></el-icon>
             </div>
           </template>
-          <div class="card-value">{{ dashboardData.queryCount }}</div>
+          <div class="card-value">{{ dashboardData.totalQueries }}</div>
         </el-card>
       </el-col>
       
@@ -21,7 +21,7 @@
               <el-icon><PieChart /></el-icon>
             </div>
           </template>
-          <div class="card-value">{{ dashboardData.chartCount }}</div>
+          <div class="card-value">{{ dashboardData.totalCharts }}</div>
         </el-card>
       </el-col>
       
@@ -33,7 +33,7 @@
               <el-icon><User /></el-icon>
             </div>
           </template>
-          <div class="card-value">{{ dashboardData.userCount }}</div>
+          <div class="card-value">{{ dashboardData.totalUsers }}</div>
         </el-card>
       </el-col>
       
@@ -45,7 +45,7 @@
               <el-icon><Timer /></el-icon>
             </div>
           </template>
-          <div class="card-value">{{ dashboardData.todayQueryCount }}</div>
+          <div class="card-value">{{ dashboardData.todayQueries }}</div>
         </el-card>
       </el-col>
     </el-row>
@@ -58,9 +58,10 @@
               <span>查询趋势</span>
             </div>
           </template>
-          <div class="chart-container">
-            <!-- 这里将添加查询趋势图表 -->
-          </div>
+          <el-table :data="dashboardData.queryTrends || []" style="width: 100%">
+            <el-table-column prop="date" label="日期" />
+            <el-table-column prop="count" label="查询次数" />
+          </el-table>
         </el-card>
       </el-col>
       
@@ -71,7 +72,7 @@
               <span>热门查询</span>
             </div>
           </template>
-          <el-table :data="popularQueries" style="width: 100%">
+          <el-table :data="dashboardData.hotQueries || []" style="width: 100%">
             <el-table-column prop="name" label="查询名称" />
             <el-table-column prop="count" label="执行次数" width="120" />
           </el-table>
@@ -84,33 +85,36 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { lo } from 'element-plus/es/locales.mjs'
 
 const dashboardData = ref({
-  queryCount: 0,
-  chartCount: 0,
-  userCount: 0,
-  todayQueryCount: 0,
-  // 你可以根据实际接口字段补充其他默认值
+  totalQueries: 0,
+  totalCharts: 0,
+  totalUsers: 0,
+  todayQueries: 0,
+  queryTrends: [],
+  hotQueries: []
 })
-
-const popularQueries = ref([])
 
 const fetchDashboardData = async () => {
   try {
     const res = await axios.get('/api/dashboard/stats')
-    dashboardData.value = res.data || {
-      queryCount: 0,
-      chartCount: 0,
-      userCount: 0,
-      todayQueryCount: 0,
-    }
-    popularQueries.value = res.data.popularQueries
+    dashboardData.value = { ...(res.data || {
+      totalQueries: 0,
+      totalCharts: 0,
+      totalUsers: 0,
+      todayQueries: 0,
+      queryTrends: [],
+      hotQueries: []
+    }) }
   } catch (e) {
     dashboardData.value = {
-      queryCount: 0,
-      chartCount: 0,
-      userCount: 0,
-      todayQueryCount: 0,
+      totalQueries: 0,
+      totalCharts: 0,
+      totalUsers: 0,
+      todayQueries: 0,
+      queryTrends: [],
+      hotQueries: []
     }
   }
 }
