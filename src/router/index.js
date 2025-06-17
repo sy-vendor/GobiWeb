@@ -36,6 +36,11 @@ const routes = [
         path: 'datasources',
         name: 'DataSources',
         component: () => import('../views/DataSources.vue')
+      },
+      {
+        path: 'templates',
+        name: 'Templates',
+        component: () => import('../views/Templates.vue')
       }
     ]
   }

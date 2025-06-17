@@ -27,6 +27,10 @@
           <el-icon><Connection /></el-icon>
           <span>数据源管理</span>
         </el-menu-item>
+        <el-menu-item index="/templates">
+          <el-icon><DocumentAdd /></el-icon>
+          <span>模板管理</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     
