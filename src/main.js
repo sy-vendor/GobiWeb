@@ -33,4 +33,18 @@ app.use(ElementPlus)
 
 app.use(router)
 
+// 屏蔽 Element Plus 的"was accessed during render but is not defined on instance"警告
+if (import.meta.env.MODE === 'development') {
+  const warn = console.warn
+  console.warn = (...args) => {
+    if (
+      typeof args[0] === 'string' &&
+      args[0].includes('was accessed during render but is not defined on instance')
+    ) {
+      return
+    }
+    warn(...args)
+  }
+}
+
 app.mount('#app') 
