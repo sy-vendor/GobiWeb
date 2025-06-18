@@ -132,6 +132,13 @@
           <el-input v-model="currentChart.valueField" />
         </el-form-item>
         
+        <el-form-item v-if="currentChart.type === 'pie'" label="饼图类型">
+          <el-select v-model="currentChart.pieType" style="width: 100%">
+            <el-option label="圆形" value="pie" />
+            <el-option label="环形" value="doughnut" />
+          </el-select>
+        </el-form-item>
+        
         <el-form-item label="颜色">
           <el-input v-model="currentChart.color" placeholder="如 #5470C6,#91CC75,#FAC858" />
         </el-form-item>
@@ -169,7 +176,7 @@
       title="图表预览"
       width="80%"
     >
-      <div ref="chartRef" style="height:400px;width:100%"></div>
+      <div ref="chartRef" style="height:500px;width:100%"></div>
     </el-dialog>
   </div>
 </template>
@@ -205,7 +212,8 @@ const currentChart = reactive({
   stack: false,
   radius: '',
   min: '',
-  max: ''
+  max: '',
+  pieType: 'pie'
 })
 
 const rules = {
@@ -270,6 +278,7 @@ const handleCreate = () => {
   currentChart.min = ''
   currentChart.max = ''
   currentChart.title = ''
+  currentChart.pieType = 'pie'
   dialogVisible.value = true
 }
 
@@ -291,7 +300,8 @@ const handleEdit = (chart) => {
     stack: false,
     radius: '',
     min: '',
-    max: ''
+    max: '',
+    pieType: chart.Type === 'pie' ? 'pie' : 'doughnut'
   })
   try {
     const cfg = JSON.parse(chart.Config || '{}')
@@ -344,7 +354,8 @@ const handlePreview = (chart) => {
     stack: false,
     radius: '',
     min: '',
-    max: ''
+    max: '',
+    pieType: chart.Type === 'pie' ? 'pie' : 'doughnut'
   })
   try {
     const cfg = JSON.parse(chart.Config || '{}')
@@ -389,7 +400,15 @@ const handleSave = async () => {
 
 function buildConfig(form, type) {
   const config = { title: form.title }
-  if (form.color) config.color = form.color.split(',')
+  config.type = type
+  if (form.color) config.color = form.color.split(',').map(s => s.trim())
+  if (type === 'pie') {
+    if (form.pieType === 'doughnut') {
+      config.radius = ['60%', '80%']
+    } else {
+      config.radius = '80%'
+    }
+  }
   if (isXYType.value) {
     config.xField = form.xField
     config.yField = form.yField
@@ -403,7 +422,7 @@ function buildConfig(form, type) {
   } else if (isPie.value) {
     config.angleField = form.angleField
     config.valueField = form.valueField
-    config.radius = form.radius
+    config.radius = config.radius || form.radius
     config.label = { show: true, position: 'outside' }
     config.legend = { show: true, position: 'top' }
   } else if (isGauge.value) {
@@ -414,6 +433,67 @@ function buildConfig(form, type) {
     config.seriesField = form.seriesField
     config.valueField = form.valueField
     config.radius = form.radius
+  } else if (type === 'scatter') {
+    const xField = form.xField || Object.keys(form.data[0] || {})[0] || ''
+    const yField = form.yField || Object.keys(form.data[0] || {})[1] || ''
+    const xIsNumber = typeof form.data[0][xField] === 'number'
+    const scatterData = form.data.map((d, i) => [
+      xIsNumber ? d[xField] : i,
+      Number(d[yField]) || 0
+    ])
+    config.xAxis = { type: xIsNumber ? 'value' : 'category', data: xIsNumber ? undefined : form.data.map(d => d[xField]) }
+    config.yAxis = { type: 'value' }
+    config.series = [{
+      type: 'scatter',
+      data: scatterData
+    }]
+  } else if (type === 'heatmap') {
+    const allKeys = Object.keys(form.data[0] || {})
+    const xField = form.xField || allKeys[0] || ''
+    const yField = form.yField || allKeys[1] || ''
+    const valueField = form.seriesField || form.valueField || allKeys[2] || ''
+    const xLabels = [...new Set(form.data.map(d => d[xField]))]
+    const yLabels = [...new Set(form.data.map(d => d[yField]))]
+    const heatmapData = form.data.map(d => [
+      xLabels.indexOf(d[xField]),
+      yLabels.indexOf(d[yField]),
+      Number(d[valueField]) || 0
+    ])
+    const maxValue = Math.max(...heatmapData.map(d => d[2]), 10)
+    const option = {
+      title: { text: form.title || '' },
+      tooltip: {},
+      xAxis: { type: 'category', data: xLabels },
+      yAxis: { type: 'category', data: yLabels },
+      visualMap: {
+        min: 0,
+        max: maxValue,
+        calculable: true,
+        orient: 'vertical',
+        right: 0,
+        top: 'center'
+      },
+      series: [{
+        type: 'heatmap',
+        data: heatmapData,
+        label: { show: true }
+      }]
+    }
+    return option
+  } else if (type === 'gauge') {
+    const valueField = config.valueField || Object.keys(form.data[0] || {})[0] || ''
+    const value = form.data.length > 0 ? Number(form.data[0][valueField]) : 0
+    const maxValue = Math.ceil((value || 100) / 1000) * 1000
+    const option = {
+      title: { text: config.title || '' },
+      series: [{
+        type: 'gauge',
+        data: [{ value }]
+      }],
+      min: config.min !== undefined ? Number(config.min) : 0,
+      max: config.max !== undefined && !isNaN(Number(config.max)) ? Number(config.max) : maxValue
+    }
+    return option
   }
   return config
 }
@@ -433,6 +513,9 @@ watch(previewVisible, async (val) => {
     await nextTick()
     if (!chartInstance) {
       chartInstance = echarts.init(chartRef.value)
+    } else {
+      chartInstance.clear()
+      chartInstance.resize()
     }
     try {
       const config = JSON.parse(currentChart.config || '{}')
@@ -440,6 +523,10 @@ watch(previewVisible, async (val) => {
       const rawData = await getQueryData(currentChart.queryID)
       const data = Array.isArray(rawData) ? rawData : (rawData.data || [])
       const option = convertToEchartsOption(config, data)
+      if ((config.type || currentChart.type) === 'gauge') {
+        const valueField = config.valueField || Object.keys(data[0] || {})[0] || ''
+        const value = data.length > 0 ? Number(data[0][valueField]) : 0
+      }
       chartInstance.setOption(option)
     } catch (e) {
       chartInstance.clear()
@@ -448,23 +535,133 @@ watch(previewVisible, async (val) => {
 })
 
 function convertToEchartsOption(config, data = []) {
-  const xField = config.xField || '月份'
-  const yField = config.yField || '销售额'
-  const seriesField = config.seriesField || '产品类别'
-
-  // 1. 获取所有x轴（如月份）和分组（如产品类别）
+  const type = config.type || currentChart.type
+  if (type === 'pie') {
+    const keys = Object.keys(data[0] || {})
+    const angleField = config.angleField || config.valueField || keys.find(k => typeof data[0][k] === 'number') || keys[1] || ''
+    const colorField = config.colorField || config.seriesField || keys.find(k => k !== angleField) || keys[0] || ''
+    const pieData = data.map(d => ({
+      name: d[colorField],
+      value: Number(d[angleField]) || 0
+    }))
+    const pieOption = {
+      title: { text: config.title || '' },
+      tooltip: config.tooltip || {},
+      legend: { data: pieData.map(d => d.name), orient: 'vertical', right: 10, top: 20 },
+      color: config.color || ['#5470C6', '#91CC75', '#FAC858', '#EE6666', '#73C0DE'],
+      series: [{
+        type: 'pie',
+        radius: config.radius || ['60%', '80%'],
+        label: config.label || { show: true, position: 'outside' },
+        itemStyle: { borderColor: '#fff', borderWidth: 2 },
+        emphasis: {
+          itemStyle: {
+            borderColor: '#fff',
+            borderWidth: 2,
+            shadowBlur: 10,
+            shadowColor: 'rgba(0, 0, 0, 0.2)'
+          }
+        },
+        data: pieData
+      }]
+    }
+    return pieOption
+  }
+  if (type === 'heatmap') {
+    const allKeys = Object.keys(data[0] || {})
+    const xField = config.xField || allKeys[0] || ''
+    const yField = config.yField || allKeys[1] || ''
+    const valueField = config.seriesField || config.valueField || allKeys[2] || ''
+    const xLabels = [...new Set(data.map(d => d[xField]))]
+    const yLabels = [...new Set(data.map(d => d[yField]))]
+    const heatmapData = data.map(d => [
+      xLabels.indexOf(d[xField]),
+      yLabels.indexOf(d[yField]),
+      Number(d[valueField]) || 0
+    ])
+    const maxValue = Math.max(...heatmapData.map(d => d[2]), 10)
+    const option = {
+      title: { text: config.title || '' },
+      tooltip: {},
+      xAxis: { type: 'category', data: xLabels },
+      yAxis: { type: 'category', data: yLabels },
+      visualMap: {
+        min: 0,
+        max: maxValue,
+        calculable: true,
+        orient: 'vertical',
+        right: 0,
+        top: 'center'
+      },
+      series: [{
+        type: 'heatmap',
+        data: heatmapData,
+        label: { show: true }
+      }]
+    }
+    return option
+  }
+  if (type === 'gauge') {
+    const valueField = config.valueField || Object.keys(data[0] || {})[0] || ''
+    const value = data.length > 0 ? Number(data[0][valueField]) : 0
+    const maxValue = Math.ceil((value || 100) / 1000) * 1000
+    const option = {
+      title: { text: config.title || '' },
+      series: [{
+        type: 'gauge',
+        data: [{ value }]
+      }],
+      min: config.min !== undefined ? Number(config.min) : 0,
+      max: config.max !== undefined && !isNaN(Number(config.max)) ? Number(config.max) : maxValue
+    }
+    console.log('gauge config.max', config.max)
+    console.log('gauge maxValue', maxValue)
+    return option
+  }
+  if (type === 'radar') {
+    const angleField = config.angleField || Object.keys(data[0] || {})[1] || ''
+    const seriesField = config.seriesField || Object.keys(data[0] || {})[0] || ''
+    const valueField = config.valueField || Object.keys(data[0] || {})[2] || ''
+    const indicators = [...new Set(data.map(d => d[angleField]))].map(name => ({ name }))
+    const groups = [...new Set(data.map(d => d[seriesField]))]
+    const series = [{
+      type: 'radar',
+      data: groups.map(group => ({
+        name: group,
+        value: indicators.map(ind => {
+          const found = data.find(d => d[seriesField] === group && d[angleField] === ind.name)
+          return found ? Number(found[valueField]) : 0
+        })
+      }))
+    }]
+    return {
+      title: { text: config.title || '' },
+      tooltip: config.tooltip || {},
+      legend: { data: groups },
+      color: config.color || ['#5470C6', '#91CC75', '#FAC858', '#EE6666', '#73C0DE'],
+      radar: { indicator: indicators },
+      series
+    }
+  }
+  // 其他类型
+  const allKeys = Object.keys(data[0] || {})
+  const xField = config.xField || allKeys[0] || ''
+  const yField = config.yField || allKeys[1] || ''
+  let seriesField = config.seriesField
+  if (!seriesField) {
+    seriesField = allKeys.find(k => k !== xField && k !== yField) || ''
+  }
   const xAxisData = [...new Set(data.map(d => d[xField]))]
-  const groups = [...new Set(data.map(d => d[seriesField]))]
-
-  // 2. 按分组生成 series
+  const groups = seriesField ? [...new Set(data.map(d => d[seriesField]))] : ['']
   const series = groups.map(group => ({
     name: group,
     type: currentChart.type,
-    data: xAxisData.map(x =>
-      (data.find(d => d[xField] === x && d[seriesField] === group) || {})[yField] || 0
-    )
+    connectNulls: true,
+    data: xAxisData.map(x => {
+      const found = seriesField ? data.find(d => d[xField] === x && d[seriesField] === group) : data.find(d => d[xField] === x)
+      return found ? found[yField] : null
+    })
   }))
-
   return {
     title: { text: config.title || '' },
     tooltip: config.tooltip || {},
