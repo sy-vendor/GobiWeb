@@ -484,14 +484,16 @@ function buildConfig(form, type) {
     const valueField = config.valueField || Object.keys(form.data[0] || {})[0] || ''
     const value = form.data.length > 0 ? Number(form.data[0][valueField]) : 0
     const maxValue = Math.ceil((value || 100) / 1000) * 1000
+    const min = config.min !== undefined && !isNaN(Number(config.min)) ? Number(config.min) : 0
+    const max = config.max !== undefined && !isNaN(Number(config.max)) ? Number(config.max) : maxValue
     const option = {
       title: { text: config.title || '' },
       series: [{
         type: 'gauge',
+        min,
+        max,
         data: [{ value }]
-      }],
-      min: config.min !== undefined ? Number(config.min) : 0,
-      max: config.max !== undefined && !isNaN(Number(config.max)) ? Number(config.max) : maxValue
+      }]
     }
     return option
   }
@@ -605,17 +607,20 @@ function convertToEchartsOption(config, data = []) {
     const valueField = config.valueField || Object.keys(data[0] || {})[0] || ''
     const value = data.length > 0 ? Number(data[0][valueField]) : 0
     const maxValue = Math.ceil((value || 100) / 1000) * 1000
+    const min = config.min !== undefined && !isNaN(Number(config.min)) ? Number(config.min) : 0
+    const max = config.max !== undefined && !isNaN(Number(config.max)) ? Number(config.max) : maxValue
     const option = {
       title: { text: config.title || '' },
       series: [{
         type: 'gauge',
+        min,
+        max,
         data: [{ value }]
-      }],
-      min: config.min !== undefined ? Number(config.min) : 0,
-      max: config.max !== undefined && !isNaN(Number(config.max)) ? Number(config.max) : maxValue
+      }]
     }
     console.log('gauge config.max', config.max)
     console.log('gauge maxValue', maxValue)
+    console.log('gauge option', option)
     return option
   }
   if (type === 'radar') {
