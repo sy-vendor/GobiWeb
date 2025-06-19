@@ -26,6 +26,7 @@
         <el-table-column prop="CreatedAt" label="上传时间" :formatter="formatDate" />
         <el-table-column label="操作" width="120">
           <template #default="{ row }">
+            <el-button type="primary" link @click="handleDownload(row)">下载</el-button>
             <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -88,6 +89,27 @@ const handleDelete = async (row) => {
     fetchTemplateList()
   } catch (e) {
     ElMessage.error('删除失败')
+  }
+}
+
+const handleDownload = async (row) => {
+  try {
+    const res = await axios.get(`/api/templates/${row.id || row.ID}/download`, {
+      responseType: 'blob'
+    })
+    // 获取文件名，优先用模板名
+    const fileName = row.Name || row.name || 'template.xlsx'
+    // 创建下载链接
+    const url = window.URL.createObjectURL(new Blob([res.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', fileName)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (e) {
+    ElMessage.error('下载失败')
   }
 }
 
