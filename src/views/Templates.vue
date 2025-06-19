@@ -69,7 +69,13 @@ async function handleUpload() {
 const fetchTemplateList = async () => {
   try {
     const res = await axios.get('/api/templates')
-    templateList.value = res.data.data || res.data || []
+    let list = res.data.data || res.data || []
+    templateList.value = list.map(item => ({
+      ...item,
+      Name: item.name,
+      Description: item.description,
+      CreatedAt: item.created_at
+    }))
   } catch (e) {
     ElMessage.error('获取模板列表失败')
   }
