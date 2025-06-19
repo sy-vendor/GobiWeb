@@ -107,6 +107,12 @@ const fetchDashboardData = async () => {
       queryTrends: [],
       hotQueries: []
     }) }
+    // 字段名映射，保证表格 prop 匹配
+    dashboardData.value.hotQueries = (dashboardData.value.hotQueries || []).map(item => ({
+      name: item.Name,
+      count: item.Count
+    }))
+    console.log('热门查询原始数据:', dashboardData.value.hotQueries)
   } catch (e) {
     dashboardData.value = {
       totalQueries: 0,
