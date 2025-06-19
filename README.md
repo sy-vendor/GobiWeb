@@ -4,13 +4,13 @@ Gobi Web 是一个现代化的商业智能（BI）系统前端界面，基于 Vu
 
 ## 功能特性
 
-![仪表盘](https://github.com/sy-vendor/GobiWeb/blob/main/src/assets/dashboard.jpg)
+![仪表盘](images/dashboard.jpg)
 > 仪表盘：系统总览、查询趋势、热门查询一目了然
 
-![图表管理](https://github.com/sy-vendor/GobiWeb/blob/main/src/assets/charts.jpg)
+![图表管理](images/charts.jpg)
 > 图表管理：多类型图表统一管理，支持一键预览与编辑
 
-![图表预览与导出](https://github.com/sy-vendor/GobiWeb/blob/main/src/assets/chart-preview.jpg)
+![图表预览与导出](images/chart-preview.jpg)
 > 图表预览弹窗：支持导出图片与打印，交互便捷
 
 - 🎨 现代化的用户界面设计
