@@ -70,7 +70,14 @@ import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
 const router = useRouter()
 const isCollapse = ref(false)
-const username = ref('Admin') // 这里应该从用户状态获取
+const userStr = localStorage.getItem('user')
+let user = {}
+try {
+  user = userStr ? JSON.parse(userStr) : {}
+} catch {
+  user = {}
+}
+const username = ref(user.username || '用户')
 
 const toggleCollapse = () => {
   isCollapse.value = !isCollapse.value
@@ -78,6 +85,7 @@ const toggleCollapse = () => {
 
 const handleLogout = () => {
   localStorage.removeItem('token')
+  localStorage.removeItem('user')
   router.push('/login')
 }
 </script>
