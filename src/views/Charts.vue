@@ -120,7 +120,7 @@
           <el-input v-model="currentChart.yField" />
         </el-form-item>
         
-        <el-form-item label="分组字段" v-if="isXYType || isRadar">
+        <el-form-item label="分组字段" v-if="isXYType || isRadar || isFunnel">
           <el-input v-model="currentChart.seriesField" />
         </el-form-item>
         
@@ -128,7 +128,7 @@
           <el-input v-model="currentChart.angleField" />
         </el-form-item>
         
-        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar">
+        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel">
           <el-input v-model="currentChart.valueField" />
         </el-form-item>
         
@@ -238,6 +238,7 @@ const isXYType = computed(() => ['bar', 'line', 'scatter', 'heatmap'].includes(c
 const isPie = computed(() => currentChart.type === 'pie')
 const isGauge = computed(() => currentChart.type === 'gauge')
 const isRadar = computed(() => currentChart.type === 'radar')
+const isFunnel = computed(() => currentChart.type === 'funnel')
 
 const fetchCharts = async () => {
   try {
@@ -378,11 +379,11 @@ const handleSave = async () => {
   try {
     const config = buildConfig(currentChart, currentChart.type)
     const payload = {
-      Name: currentChart.name,
-      Description: currentChart.description,
-      Type: currentChart.type,
-      QueryID: currentChart.queryID,
-      Config: JSON.stringify(config)
+      name: currentChart.name,
+      type: currentChart.type,
+      query_id: currentChart.queryID,
+      config: JSON.stringify(config),
+      description: currentChart.description
     }
     if (dialogType.value === 'create') {
       await axios.post('/api/charts', payload)
@@ -409,93 +410,34 @@ function buildConfig(form, type) {
       config.radius = '80%'
     }
   }
-  if (isXYType.value) {
-    config.xField = form.xField
-    config.yField = form.yField
-    config.seriesField = form.seriesField
+  if (['bar', 'line', 'scatter', 'heatmap'].includes(type)) {
+    config.xField = form.xField || ''
+    config.yField = form.yField || ''
+    config.seriesField = form.seriesField || ''
     config.stack = form.stack
     config.xAxis = { name: form.xField, type: 'category' }
     config.yAxis = { name: form.yField, type: 'value' }
     config.legend = { show: true, position: 'top' }
     config.tooltip = { show: true, trigger: 'axis' }
     config.label = { show: true, position: 'top' }
-  } else if (isPie.value) {
-    config.angleField = form.angleField
-    config.valueField = form.valueField
+  } else if (type === 'pie') {
+    config.angleField = form.angleField || ''
+    config.valueField = form.valueField || ''
     config.radius = config.radius || form.radius
     config.label = { show: true, position: 'outside' }
     config.legend = { show: true, position: 'top' }
-  } else if (isGauge.value) {
-    config.valueField = form.valueField
+  } else if (type === 'gauge') {
+    config.valueField = form.valueField || ''
     config.min = form.min
     config.max = form.max
-  } else if (isRadar.value) {
-    config.seriesField = form.seriesField
-    config.valueField = form.valueField
+  } else if (type === 'radar') {
+    config.seriesField = form.seriesField || ''
+    config.valueField = form.valueField || ''
     config.radius = form.radius
-  } else if (type === 'scatter') {
-    const xField = form.xField || Object.keys(form.data[0] || {})[0] || ''
-    const yField = form.yField || Object.keys(form.data[0] || {})[1] || ''
-    const xIsNumber = typeof form.data[0][xField] === 'number'
-    const scatterData = form.data.map((d, i) => [
-      xIsNumber ? d[xField] : i,
-      Number(d[yField]) || 0
-    ])
-    config.xAxis = { type: xIsNumber ? 'value' : 'category', data: xIsNumber ? undefined : form.data.map(d => d[xField]) }
-    config.yAxis = { type: 'value' }
-    config.series = [{
-      type: 'scatter',
-      data: scatterData
-    }]
-  } else if (type === 'heatmap') {
-    const allKeys = Object.keys(form.data[0] || {})
-    const xField = form.xField || allKeys[0] || ''
-    const yField = form.yField || allKeys[1] || ''
-    const valueField = form.seriesField || form.valueField || allKeys[2] || ''
-    const xLabels = [...new Set(form.data.map(d => d[xField]))]
-    const yLabels = [...new Set(form.data.map(d => d[yField]))]
-    const heatmapData = form.data.map(d => [
-      xLabels.indexOf(d[xField]),
-      yLabels.indexOf(d[yField]),
-      Number(d[valueField]) || 0
-    ])
-    const maxValue = Math.max(...heatmapData.map(d => d[2]), 10)
-    const option = {
-      title: { text: form.title || '' },
-      tooltip: {},
-      xAxis: { type: 'category', data: xLabels },
-      yAxis: { type: 'category', data: yLabels },
-      visualMap: {
-        min: 0,
-        max: maxValue,
-        calculable: true,
-        orient: 'vertical',
-        right: 0,
-        top: 'center'
-      },
-      series: [{
-        type: 'heatmap',
-        data: heatmapData,
-        label: { show: true }
-      }]
-    }
-    return option
-  } else if (type === 'gauge') {
-    const valueField = config.valueField || Object.keys(form.data[0] || {})[0] || ''
-    const value = form.data.length > 0 ? Number(form.data[0][valueField]) : 0
-    const maxValue = Math.ceil((value || 100) / 1000) * 1000
-    const min = config.min !== undefined && !isNaN(Number(config.min)) ? Number(config.min) : 0
-    const max = config.max !== undefined && !isNaN(Number(config.max)) ? Number(config.max) : maxValue
-    const option = {
-      title: { text: config.title || '' },
-      series: [{
-        type: 'gauge',
-        min,
-        max,
-        data: [{ value }]
-      }]
-    }
-    return option
+  } else if (type === 'funnel') {
+    config.seriesField = form.seriesField || form.xField || ''
+    config.valueField = form.valueField || form.yField || ''
+    config.label = form.label
   }
   return config
 }
@@ -618,9 +560,6 @@ function convertToEchartsOption(config, data = []) {
         data: [{ value }]
       }]
     }
-    console.log('gauge config.max', config.max)
-    console.log('gauge maxValue', maxValue)
-    console.log('gauge option', option)
     return option
   }
   if (type === 'radar') {
@@ -647,6 +586,38 @@ function convertToEchartsOption(config, data = []) {
       radar: { indicator: indicators },
       series
     }
+  }
+  if (type === 'funnel') {
+    const allKeys = Object.keys(data[0] || {})
+    const nameField = config.seriesField || config.xField || allKeys[0] || ''
+    const valueField = config.valueField || config.yField || allKeys[1] || ''
+    const funnelData = data.map(d => ({
+      name: d[nameField],
+      value: Number(d[valueField]) || 0
+    }))
+    const maxValue = Math.max(...funnelData.map(d => d.value), 100)
+    const option = {
+      title: { text: config.title || '' },
+      tooltip: {},
+      color: config.color || ['#5470C6', '#91CC75', '#FAC858', '#EE6666', '#73C0DE'],
+      series: [{
+        type: 'funnel',
+        left: '10%',
+        top: 60,
+        bottom: 60,
+        width: '80%',
+        min: 0,
+        max: maxValue,
+        sort: 'descending',
+        gap: 2,
+        label: config.label || { show: true, position: 'inside' },
+        labelLine: { length: 10, lineStyle: { width: 1, type: 'solid' } },
+        itemStyle: { borderColor: '#fff', borderWidth: 1 },
+        emphasis: { label: { fontSize: 20 } },
+        data: funnelData
+      }]
+    }
+    return option
   }
   // 其他类型
   const allKeys = Object.keys(data[0] || {})
@@ -726,5 +697,5 @@ onMounted(() => {
   .chart-preview {
     height: 400px;
   }
-}
+} 
 </style> 
