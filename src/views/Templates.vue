@@ -37,7 +37,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import http from '../utils/axios'
 
 const templateName = ref('')
 const templateDesc = ref('')
@@ -51,55 +51,62 @@ function onFileChange(e) {
 async function handleUpload() {
   if (!file.value) return ElMessage.error('请选择文件')
   if (!templateName.value) return ElMessage.error('请输入模板名')
+  
   const formData = new FormData()
   formData.append('template', file.value)
   formData.append('name', templateName.value)
   formData.append('description', templateDesc.value)
+  
   try {
-    await axios.post('/api/templates', formData)
+    await http.post('/templates', formData)
     ElMessage.success('上传成功')
     templateName.value = ''
     templateDesc.value = ''
     file.value = null
     fetchTemplateList()
-  } catch (e) {
-    ElMessage.error('上传失败')
+  } catch (error) {
+    console.error('上传失败:', error)
   }
 }
 
 const fetchTemplateList = async () => {
   try {
-    const res = await axios.get('/api/templates')
+    const res = await http.get('/templates')
     let list = res.data.data || res.data || []
     templateList.value = list.map(item => ({
       ...item,
-      Name: item.name,
-      Description: item.description,
-      CreatedAt: item.created_at
+      id: item.id || item.ID,
+      ID: item.id || item.ID,
+      Name: item.name || item.Name,
+      Description: item.description || item.Description,
+      CreatedAt: item.created_at || item.CreatedAt
     }))
-  } catch (e) {
-    ElMessage.error('获取模板列表失败')
+  } catch (error) {
+    console.error('获取模板列表失败:', error)
   }
 }
 
 const handleDelete = async (row) => {
   try {
-    await axios.delete(`/api/templates/${row.ID}`)
+    const templateId = row.id || row.ID
+    if (!templateId) {
+      throw new Error('模板 ID 不存在')
+    }
+
+    await http.delete(`/templates/${templateId}`)
     ElMessage.success('删除成功')
     fetchTemplateList()
-  } catch (e) {
-    ElMessage.error('删除失败')
+  } catch (error) {
+    console.error('删除失败:', error)
   }
 }
 
 const handleDownload = async (row) => {
   try {
-    const res = await axios.get(`/api/templates/${row.id || row.ID}/download`, {
+    const res = await http.get(`/templates/${row.id || row.ID}/download`, {
       responseType: 'blob'
     })
-    // 获取文件名，优先用模板名
     const fileName = row.Name || row.name || 'template.xlsx'
-    // 创建下载链接
     const url = window.URL.createObjectURL(new Blob([res.data]))
     const link = document.createElement('a')
     link.href = url
@@ -108,8 +115,8 @@ const handleDownload = async (row) => {
     link.click()
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
-  } catch (e) {
-    ElMessage.error('下载失败')
+  } catch (error) {
+    console.error('下载失败:', error)
   }
 }
 

@@ -50,7 +50,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
-import axios from 'axios'
+import http from '../utils/axios'
 
 const router = useRouter()
 const loading = ref(false)
@@ -79,7 +79,7 @@ const handleLogin = async () => {
     await loginFormRef.value.validate()
     loading.value = true
     
-    const response = await axios.post('/api/auth/login', loginForm)
+    const response = await http.post('/auth/login', loginForm)
     const { token } = response.data
     
     localStorage.setItem('token', token)
@@ -89,13 +89,7 @@ const handleLogin = async () => {
     ElMessage.success('登录成功')
     router.push('/')
   } catch (error) {
-    if (error.response) {
-      ElMessage.error(error.response.data?.message || '登录失败')
-    } else if (error.message) {
-      ElMessage.error(error.message)
-    } else {
-      ElMessage.error('登录失败，请稍后重试')
-    }
+    console.error('登录失败:', error)
   } finally {
     loading.value = false
   }
