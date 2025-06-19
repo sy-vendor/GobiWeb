@@ -41,6 +41,11 @@ const routes = [
         path: 'templates',
         name: 'Templates',
         component: () => import('../views/Templates.vue')
+      },
+      {
+        path: 'reports',
+        name: 'Reports',
+        component: () => import('../views/Reports.vue')
       }
     ]
   }

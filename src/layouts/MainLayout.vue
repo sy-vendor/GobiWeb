@@ -31,6 +31,10 @@
           <el-icon><DocumentAdd /></el-icon>
           <span>模板管理</span>
         </el-menu-item>
+        <el-menu-item index="/reports">
+          <el-icon><DocumentCopy /></el-icon>
+          <span>报告管理</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     
@@ -66,6 +70,18 @@
 <script setup>
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { 
+  DataLine, 
+  Document, 
+  PieChart, 
+  User, 
+  Connection, 
+  DocumentAdd, 
+  DocumentCopy,
+  Fold,
+  Expand,
+  ArrowDown
+} from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
