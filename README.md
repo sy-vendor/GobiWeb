@@ -4,6 +4,15 @@ Gobi Web 是一个现代化的商业智能（BI）系统前端界面，基于 Vu
 
 ## 功能特性
 
+![仪表盘](src/assets/dashboard.jpg)
+> 仪表盘：系统总览、查询趋势、热门查询一目了然
+
+![图表管理](src/assets/charts.jpg)
+> 图表管理：多类型图表统一管理，支持一键预览与编辑
+
+![图表预览与导出](src/assets/chart-preview.jpg)
+> 图表预览弹窗：支持导出图片与打印，交互便捷
+
 - 🎨 现代化的用户界面设计
 - 📊 丰富的数据可视化功能
   - 支持 8 种图表类型：柱状图、折线图、饼图、散点图、雷达图、热力图、仪表盘、漏斗图
@@ -277,7 +286,3 @@ VITE_API_BASE_URL=https://your-api-domain.com/api
 - 项目维护者：[sy-vendor]
 - 邮箱：[sytourist@gmail.com]
 - 项目地址：[GitHub Repository]
-
-## 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
