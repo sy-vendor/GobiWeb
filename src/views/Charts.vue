@@ -176,6 +176,21 @@
       title="图表预览"
       width="80%"
     >
+      <template #header="{ close, titleId, titleClass }">
+        <div class="preview-header">
+          <span :id="titleId" :class="titleClass">图表预览</span>
+          <div class="preview-actions">
+            <el-button type="primary" @click="handleExportImage" :loading="exporting">
+              <el-icon><Download /></el-icon>
+              导出图片
+            </el-button>
+            <el-button type="success" @click="handlePrint">
+              <el-icon><Printer /></el-icon>
+              打印
+            </el-button>
+          </div>
+        </div>
+      </template>
       <div ref="chartRef" style="height:500px;width:100%"></div>
     </el-dialog>
   </div>
@@ -187,6 +202,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import axios from 'axios'
 import { lo } from 'element-plus/es/locales.mjs'
 import * as echarts from 'echarts'
+import { Download, Printer } from '@element-plus/icons-vue'
 
 const charts = ref([])
 const queries = ref([])
@@ -194,6 +210,7 @@ const dialogVisible = ref(false)
 const dialogType = ref('create')
 const previewVisible = ref(false)
 const chartRef = ref(null)
+const exporting = ref(false)
 let chartInstance = null
 
 const currentChart = reactive({
@@ -652,6 +669,119 @@ function convertToEchartsOption(config, data = []) {
   }
 }
 
+// 导出图片功能
+const handleExportImage = async () => {
+  if (!chartInstance) {
+    ElMessage.warning('图表未加载完成，请稍后再试')
+    return
+  }
+  
+  exporting.value = true
+  try {
+    // 使用 ECharts 的 getDataURL 方法导出图片
+    const dataURL = chartInstance.getDataURL({
+      type: 'png',
+      pixelRatio: 2, // 提高图片质量
+      backgroundColor: '#fff'
+    })
+    
+    // 创建下载链接
+    const link = document.createElement('a')
+    link.download = `${currentChart.name || 'chart'}_${new Date().getTime()}.png`
+    link.href = dataURL
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    ElMessage.success('图片导出成功')
+  } catch (error) {
+    console.error('导出图片失败:', error)
+    ElMessage.error('导出图片失败，请重试')
+  } finally {
+    exporting.value = false
+  }
+}
+
+// 打印功能
+const handlePrint = () => {
+  if (!chartInstance) {
+    ElMessage.warning('图表未加载完成，请稍后再试')
+    return
+  }
+  
+  try {
+    // 获取图表的图片数据
+    const dataURL = chartInstance.getDataURL({
+      type: 'png',
+      pixelRatio: 2,
+      backgroundColor: '#fff'
+    })
+    
+    // 创建打印窗口
+    const printWindow = window.open('', '_blank')
+    const chartTitle = currentChart.name || '图表'
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${chartTitle}</title>
+          <style>
+            body {
+              margin: 0;
+              padding: 20px;
+              font-family: Arial, sans-serif;
+              text-align: center;
+            }
+            .print-header {
+              margin-bottom: 20px;
+              font-size: 18px;
+              font-weight: bold;
+            }
+            .chart-image {
+              max-width: 100%;
+              height: auto;
+              border: 1px solid #ddd;
+            }
+            .print-footer {
+              margin-top: 20px;
+              font-size: 12px;
+              color: #666;
+            }
+            @media print {
+              body { padding: 0; }
+              .print-header { margin-bottom: 10px; }
+              .print-footer { margin-top: 10px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-header">${chartTitle}</div>
+          <img src="${dataURL}" alt="${chartTitle}" class="chart-image" />
+          <div class="print-footer">
+            打印时间: ${new Date().toLocaleString()}
+          </div>
+        </body>
+      </html>
+    `)
+    
+    printWindow.document.close()
+    
+    // 等待图片加载完成后打印
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print()
+        printWindow.close()
+      }, 500)
+    }
+    
+    ElMessage.success('正在打开打印窗口')
+  } catch (error) {
+    console.error('打印失败:', error)
+    ElMessage.error('打印失败，请重试')
+  }
+}
+
 onMounted(() => {
   fetchCharts()
   fetchQueries()
@@ -696,6 +826,18 @@ onMounted(() => {
   
   .chart-preview {
     height: 400px;
+  }
+  
+  .preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    
+    .preview-actions {
+      display: flex;
+      gap: 10px;
+    }
   }
 } 
 </style> 
