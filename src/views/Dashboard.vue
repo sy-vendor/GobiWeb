@@ -112,7 +112,6 @@ const fetchDashboardData = async () => {
       name: item.Name,
       count: item.Count
     }))
-    console.log('热门查询原始数据:', dashboardData.value.hotQueries)
   } catch (e) {
     dashboardData.value = {
       totalQueries: 0,

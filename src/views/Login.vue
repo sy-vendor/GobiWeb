@@ -80,9 +80,11 @@ const handleLogin = async () => {
     loading.value = true
     
     const response = await axios.post('/api/auth/login', loginForm)
-    const { token, user } = response.data
+    const { token } = response.data
+    console.log('response', response.config)
     
     localStorage.setItem('token', token)
+    const user = { username: loginForm.username }
     localStorage.setItem('user', JSON.stringify(user))
     
     ElMessage.success('登录成功')
