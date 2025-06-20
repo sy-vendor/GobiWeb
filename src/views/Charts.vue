@@ -621,6 +621,7 @@ watch(previewVisible, async (val) => {
 })
 
 function convertToEchartsOption(config, data = []) {
+
   const type = config.type || currentChart.type
   let option = {}; // Default to an empty object
 
@@ -849,7 +850,7 @@ function convertToEchartsOption(config, data = []) {
       Number(d[valueField]) || 0
     ])
     const maxValue = Math.max(...heatmapData.map(d => d[2]), 10)
-    const option = {
+    option = {
       title: { text: config.title || '' },
       tooltip: {},
       xAxis: { type: 'category', data: xLabels },
@@ -870,20 +871,47 @@ function convertToEchartsOption(config, data = []) {
     }
   }
   if (type === 'gauge') {
-    const valueField = config.valueField || Object.keys(data[0] || {})[0] || ''
-    const value = data.length > 0 ? Number(data[0][valueField]) : 0
-    const maxValue = Math.ceil((value || 100) / 1000) * 1000
-    const min = config.min !== undefined && !isNaN(Number(config.min)) ? Number(config.min) : 0
-    const max = config.max !== undefined && !isNaN(Number(config.max)) ? Number(config.max) : maxValue
-    const option = {
+    let valueField = config.valueField;
+    if (!valueField && data.length > 0 && data[0]) {
+      // If a valueField is not configured, try to find the first field that contains a number.
+      valueField = Object.keys(data[0]).find(key => typeof data[0][key] === 'number');
+    }
+    // If no numeric field is found, fall back to the first field.
+    if (!valueField && data.length > 0 && data[0]) {
+      valueField = Object.keys(data[0])[0];
+    }
+    valueField = valueField || '';
+
+    const rawValue = data.length > 0 && data[0] ? data[0][valueField] : 0;
+    const value = Number(rawValue);
+
+    const min = (config.min !== undefined && !isNaN(Number(config.min))) ? Number(config.min) : 0;
+    
+    let max = 100;
+    if (config.max !== undefined && !isNaN(Number(config.max))) {
+      max = Number(config.max);
+    } else if (!isNaN(value)) {
+      if (value > 1000) {
+        max = Math.ceil(value / 1000) * 1000;
+      } else if (value > 100) {
+        max = Math.ceil(value / 100) * 100;
+      } else {
+        max = 100;
+      }
+    }
+
+    option = {
       title: { text: config.title || '' },
       series: [{
         type: 'gauge',
         min,
         max,
-        data: [{ value }]
+        data: [{ value: isNaN(value) ? 0 : value }],
+        detail: {
+          formatter: '{value}'
+        }
       }]
-    }
+    };
   }
   if (type === 'radar') {
     const angleField = config.angleField || Object.keys(data[0] || {})[1] || ''
@@ -917,13 +945,23 @@ function convertToEchartsOption(config, data = []) {
     const funnelData = data.map(d => ({
       name: d[nameField],
       value: Number(d[valueField]) || 0
-    }))
-    const maxValue = Math.max(...funnelData.map(d => d.value), 100)
-    const option = {
+    })).sort((a, b) => b.value - a.value);
+
+    const maxValue = Math.max(...funnelData.map(d => d.value), 100);
+    const legendData = funnelData.map(d => d.name);
+
+    option = {
       title: { text: config.title || '' },
-      tooltip: {},
+      tooltip: {
+        trigger: 'item',
+        formatter: "{a} <br/>{b} : {c}"
+      },
+      legend: {
+        data: legendData
+      },
       color: config.color || ['#5470C6', '#91CC75', '#FAC858', '#EE6666', '#73C0DE'],
       series: [{
+        name: config.title || '漏斗图',
         type: 'funnel',
         left: '10%',
         top: 60,
@@ -933,10 +971,26 @@ function convertToEchartsOption(config, data = []) {
         max: maxValue,
         sort: 'descending',
         gap: 2,
-        label: config.label || { show: true, position: 'inside' },
-        labelLine: { length: 10, lineStyle: { width: 1, type: 'solid' } },
-        itemStyle: { borderColor: '#fff', borderWidth: 1 },
-        emphasis: { label: { fontSize: 20 } },
+        label: {
+          show: true,
+          position: 'inside'
+        },
+        labelLine: {
+          length: 10,
+          lineStyle: {
+            width: 1,
+            type: 'solid'
+          }
+        },
+        itemStyle: {
+          borderColor: '#fff',
+          borderWidth: 1
+        },
+        emphasis: {
+          label: {
+            fontSize: 20
+          }
+        },
         data: funnelData
       }]
     }
