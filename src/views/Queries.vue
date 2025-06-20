@@ -229,7 +229,7 @@ function formatDate(row, column, cellValue) {
 }
 
 onMounted(() => {
-  fetchQueries()
+fetchQueries()
   fetchDataSources()
 })
 </script>
