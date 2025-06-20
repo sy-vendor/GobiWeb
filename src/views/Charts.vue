@@ -92,6 +92,8 @@
             <el-option label="热力图" value="heatmap" />
             <el-option label="仪表盘" value="gauge" />
             <el-option label="漏斗图" value="funnel" />
+            <el-option label="3D曲面图" value="3d-surface" />
+            <el-option label="3D气泡图" value="3d-bubble" />
           </el-select>
         </el-form-item>
         
@@ -271,8 +273,9 @@ const isPie = computed(() => currentChart.type === 'pie')
 const isGauge = computed(() => currentChart.type === 'gauge')
 const isRadar = computed(() => currentChart.type === 'radar')
 const isFunnel = computed(() => currentChart.type === 'funnel')
-const is3DType = computed(() => ['3d-bar', '3d-scatter'].includes(currentChart.type))
-const is3DScatter = computed(() => currentChart.type === '3d-scatter')
+const is3DType = computed(() => ['3d-bar', '3d-scatter', '3d-surface', '3d-bubble'].includes(currentChart.type))
+const is3DScatter = computed(() => currentChart.type === '3d-scatter' || currentChart.type === '3d-bubble')
+const is3DBubble = computed(() => currentChart.type === '3d-bubble')
 
 const resetForm = () => {
   nextTick(() => {
@@ -336,7 +339,6 @@ const handleCreate = () => {
 }
 
 const handleEdit = chartToEdit => {
-  // console.log('Editing chart data:', chartToEdit);
   resetForm()
   dialogType.value = 'edit'
   
@@ -452,12 +454,14 @@ const handleSave = async () => {
         config.stack = chartModel.stack
       }
 
-      if (['3d-bar', '3d-scatter'].includes(type)) {
+      if (['3d-bar', '3d-scatter', '3d-surface', '3d-bubble'].includes(type)) {
         config.xField = chartModel.xField
         config.yField = chartModel.yField
         config.zField = chartModel.zField
-        config.colorField = chartModel.colorField
-        config.sizeField = chartModel.sizeField
+        if (type === '3d-scatter' || type === '3d-bar' || type === '3d-bubble') {
+          config.colorField = chartModel.colorField
+          config.sizeField = chartModel.sizeField
+        }
       }
       
       if (type === 'pie') {
@@ -587,6 +591,20 @@ function buildConfig(form, type) {
     config.seriesField = form.seriesField || form.xField || ''
     config.valueField = form.valueField || form.yField || ''
     config.label = form.label
+  } else if (type === '3d-surface') {
+    config.xField = form.xField || ''
+    config.yField = form.yField || ''
+    config.zField = form.zField || ''
+    config.grid3D = {
+      boxWidth: 100,
+      boxHeight: 100,
+      boxDepth: 100,
+      viewControl: {
+        alpha: 20,
+        beta: 40,
+        distance: 200
+      }
+    }
   }
   return config
 }
@@ -625,20 +643,23 @@ function convertToEchartsOption(config, data = []) {
   const type = config.type || currentChart.type
   let option = {}; // Default to an empty object
 
-  if (type === '3d-scatter') {
-    const xField = config.xField
-    const yField = config.yField
-    const zField = config.zField
-    const colorField = config.colorField
-    const sizeField = config.sizeField
+  if (type === '3d-bubble' || type === '3d-scatter') {
+    const xField = config.xField;
+    const yField = config.yField;
+    const zField = config.zField;
+    const colorField = config.colorField;
+    const sizeField = config.sizeField;
 
     if (!xField || !yField || !zField || !data || data.length === 0) {
-      return { title: { text: config.title || '数据或配置不完整' } }
+      return { title: { text: config.title || '数据或配置不完整' } };
     }
 
     const series = [];
     const legendData = [];
-    const colors = config.color || ['#5470C6', '#91CC75', '#FAC858', '#EE6666', '#73C0DE', '#3BA272', '#FC8452', '#9A60B4'];
+    const colors = config.color || [
+      '#1890ff', '#facc14', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96', '#fa8c16', '#a0d911',
+      '#faad14', '#bfbfbf', '#d3adf7', '#ff85c0', '#ffd666', '#fffb8f', '#d9f7be', '#e6fffb'
+    ];
 
     if (colorField) {
       const groups = [...new Set(data.map(item => item[colorField]))];
@@ -661,19 +682,13 @@ function convertToEchartsOption(config, data = []) {
               }
             };
             if (sizeField && item[sizeField]) {
-              point.symbolSize = Math.max(5, Math.min(30, Number(item[sizeField]) || 10));
+              point.symbolSize = Math.max(5, Math.min(50, Number(item[sizeField]) || 10));
             }
             return point;
           }),
           symbolSize: sizeField ? undefined : 10,
-          itemStyle: {
-            opacity: 0.8
-          },
-          emphasis: {
-            itemStyle: {
-              opacity: 1
-            }
-          }
+          itemStyle: { opacity: 0.8 },
+          emphasis: { itemStyle: { opacity: 1 } }
         });
       });
     } else {
@@ -688,15 +703,12 @@ function convertToEchartsOption(config, data = []) {
             ]
           };
           if (sizeField && item[sizeField]) {
-            point.symbolSize = Math.max(5, Math.min(30, Number(item[sizeField]) || 10));
+            point.symbolSize = Math.max(5, Math.min(50, Number(item[sizeField]) || 10));
           }
           return point;
         }),
         symbolSize: sizeField ? undefined : 10,
-        itemStyle: {
-          color: colors[0],
-          opacity: 0.8
-        }
+        itemStyle: { color: colors[0], opacity: 0.8 }
       });
     }
 
@@ -705,7 +717,7 @@ function convertToEchartsOption(config, data = []) {
     const allZ = data.map(item => Number(item[zField]) || 0);
 
     option = {
-      title: { text: config.title || '3D散点图' },
+      title: { text: config.title || (type === '3d-bubble' ? '3D气泡图' : '3D散点图') },
       tooltip: {
         formatter: function(params) {
           const data = params.data;
@@ -719,32 +731,13 @@ function convertToEchartsOption(config, data = []) {
           return tooltip;
         }
       },
-      legend: {
-        data: legendData,
-        orient: 'vertical',
-        right: 10,
-        top: 20
-      },
+      legend: { data: legendData, orient: 'vertical', right: 10, top: 20 },
       grid3D: {
         boxWidth: 100,
         boxHeight: 100,
         boxDepth: 100,
-        viewControl: {
-          alpha: 20,
-          beta: 40,
-          distance: 200,
-          autoRotate: false,
-          autoRotateSpeed: 10
-        },
-        light: {
-          main: {
-            intensity: 1.2,
-            shadow: true
-          },
-          ambient: {
-            intensity: 0.3
-          }
-        }
+        viewControl: { alpha: 20, beta: 40, distance: 200, autoRotate: false, autoRotateSpeed: 10 },
+        light: { main: { intensity: 1.2, shadow: true }, ambient: { intensity: 0.3 } }
       },
       xAxis3D: { type: 'value', name: xField, min: Math.min(...allX), max: Math.max(...allX) },
       yAxis3D: { type: 'value', name: yField, min: Math.min(...allY), max: Math.max(...allY) },
@@ -994,6 +987,63 @@ function convertToEchartsOption(config, data = []) {
         data: funnelData
       }]
     }
+  }
+  if (type === '3d-surface') {
+    const xField = config.xField;
+    const yField = config.yField;
+    const zField = config.zField;
+    if (!xField || !yField || !zField || !data || data.length === 0) {
+      return { title: { text: config.title || '数据或配置不完整' } };
+    }
+
+    // 自动离散化x/y到2位小数
+    function round2(val) {
+      return Math.round(Number(val) * 100) / 100;
+    }
+    const xDataRaw = data.map(item => round2(item[xField]));
+    const yDataRaw = data.map(item => round2(item[yField]));
+    const xData = [...new Set(xDataRaw)].sort((a, b) => a - b);
+    const yData = [...new Set(yDataRaw)].sort((a, b) => a - b);
+
+    // 构造zMatrix，自动补齐所有x/y组合
+    const zMatrix = yData.map(y =>
+      xData.map(x => {
+        const found = data.find(d => round2(d[xField]) === x && round2(d[yField]) === y);
+        return found ? Number(found[zField]) : 0;
+      })
+    );
+
+    option = {
+      title: { text: config.title || '' },
+      tooltip: { show: true },
+      visualMap: {
+        min: Math.min(...zMatrix.flat()),
+        max: Math.max(...zMatrix.flat()),
+        calculable: true,
+        realtime: false,
+        inRange: {
+          color: config.color || [
+            '#313695', '#4575b4', '#74add1', '#abd9e9', '#e0f3f8',
+            '#ffffcc', '#fee090', '#fdae61', '#f46d43', '#d73027', '#a50026'
+          ]
+        }
+      },
+      xAxis3D: { type: 'category', name: xField, data: xData },
+      yAxis3D: { type: 'category', name: yField, data: yData },
+      zAxis3D: { type: 'value', name: zField },
+      grid3D: config.grid3D || {
+        boxWidth: 100,
+        boxHeight: 100,
+        boxDepth: 100,
+        viewControl: { alpha: 20, beta: 40, distance: 200 }
+      },
+      series: [{
+        type: 'surface',
+        wireframe: { show: true },
+        shading: 'color',
+        data: zMatrix
+      }]
+    };
   }
   // 其他类型
   if (Object.keys(option).length === 0) {

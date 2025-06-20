@@ -44,4 +44,6 @@ if (import.meta.env.DEV) {
   };
 }
 
+console.warn = () => {};
+
 app.mount('#app') 
