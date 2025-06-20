@@ -33,18 +33,15 @@ app.use(ElementPlus)
 
 app.use(router)
 
-// 屏蔽 Element Plus 的"was accessed during render but is not defined on instance"警告
-if (import.meta.env.MODE === 'development') {
-  const warn = console.warn
+// 在开发环境下，屏蔽特定的 ECharts 警告
+if (import.meta.env.DEV) {
+  const originalWarn = console.warn;
   console.warn = (...args) => {
-    if (
-      typeof args[0] === 'string' &&
-      args[0].includes('was accessed during render but is not defined on instance')
-    ) {
-      return
+    if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('geo3D exists')) {
+      return; // 发现特定警告，直接返回，不打印
     }
-    warn(...args)
-  }
+    originalWarn(...args); // 其他警告正常打印
+  };
 }
 
 app.mount('#app') 

@@ -83,6 +83,7 @@
         <el-form-item label="图表类型" prop="type">
           <el-select v-model="currentChart.type" style="width: 100%">
             <el-option label="柱状图" value="bar" />
+            <el-option label="3D柱状图" value="3d-bar" />
             <el-option label="折线图" value="line" />
             <el-option label="饼图" value="pie" />
             <el-option label="散点图" value="scatter" />
@@ -112,12 +113,16 @@
           <el-input v-model="currentChart.title" />
         </el-form-item>
         
-        <el-form-item label="X字段" v-if="isXYType">
+        <el-form-item label="X字段" v-if="isXYType || is3DBar">
           <el-input v-model="currentChart.xField" />
         </el-form-item>
         
-        <el-form-item label="Y字段" v-if="isXYType">
+        <el-form-item label="Y字段" v-if="isXYType || is3DBar">
           <el-input v-model="currentChart.yField" />
+        </el-form-item>
+        
+        <el-form-item label="Z字段" v-if="is3DBar">
+          <el-input v-model="currentChart.zField" />
         </el-form-item>
         
         <el-form-item label="分组字段" v-if="isXYType || isRadar || isFunnel">
@@ -202,6 +207,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import axios from 'axios'
 import { lo } from 'element-plus/es/locales.mjs'
 import * as echarts from 'echarts'
+import 'echarts-gl'
 import { Download, Printer } from '@element-plus/icons-vue'
 
 const charts = ref([])
@@ -222,6 +228,7 @@ const currentChart = reactive({
   title: '',
   xField: '',
   yField: '',
+  zField: '',
   seriesField: '',
   angleField: '',
   valueField: '',
@@ -252,6 +259,7 @@ const rules = {
 }
 
 const isXYType = computed(() => ['bar', 'line', 'scatter', 'heatmap'].includes(currentChart.type))
+const is3DBar = computed(() => currentChart.type === '3d-bar')
 const isPie = computed(() => currentChart.type === 'pie')
 const isGauge = computed(() => currentChart.type === 'gauge')
 const isRadar = computed(() => currentChart.type === 'radar')
@@ -285,8 +293,10 @@ const handleCreate = () => {
   currentChart.description = ''
   currentChart.type = 'bar'
   currentChart.queryID = null
+  currentChart.title = ''
   currentChart.xField = ''
   currentChart.yField = ''
+  currentChart.zField = ''
   currentChart.seriesField = ''
   currentChart.angleField = ''
   currentChart.valueField = ''
@@ -295,37 +305,30 @@ const handleCreate = () => {
   currentChart.radius = ''
   currentChart.min = ''
   currentChart.max = ''
-  currentChart.title = ''
   currentChart.pieType = 'pie'
   dialogVisible.value = true
 }
 
 const handleEdit = (chart) => {
   dialogType.value = 'edit'
+  // 先重置，避免旧数据干扰
+  handleCreate()
+  dialogType.value = 'edit'
+  
   Object.assign(currentChart, {
     id: chart.ID,
     name: chart.Name,
     description: chart.description,
     type: chart.Type,
     queryID: chart.QueryID || chart.queryID || chart.query_id,
-    title: '',
-    xField: '',
-    yField: '',
-    seriesField: '',
-    angleField: '',
-    valueField: '',
-    color: '',
-    stack: false,
-    radius: '',
-    min: '',
-    max: '',
-    pieType: chart.Type === 'pie' ? 'pie' : 'doughnut'
   })
+
   try {
     const cfg = JSON.parse(chart.Config || '{}')
     if (cfg.title) currentChart.title = cfg.title
     if (cfg.xField) currentChart.xField = cfg.xField
     if (cfg.yField) currentChart.yField = cfg.yField
+    if (cfg.zField) currentChart.zField = cfg.zField
     if (cfg.seriesField) currentChart.seriesField = cfg.seriesField
     if (cfg.angleField) currentChart.angleField = cfg.angleField
     if (cfg.valueField) currentChart.valueField = cfg.valueField
@@ -334,6 +337,7 @@ const handleEdit = (chart) => {
     if (cfg.radius) currentChart.radius = cfg.radius
     if (cfg.min !== undefined) currentChart.min = cfg.min
     if (cfg.max !== undefined) currentChart.max = cfg.max
+    if (cfg.pieType) currentChart.pieType = cfg.pieType
   } catch {}
   dialogVisible.value = true
 }
@@ -355,41 +359,38 @@ const handleDelete = async (chart) => {
 }
 
 const handlePreview = (chart) => {
-  Object.assign(currentChart, {
+  // 使用一个干净的临时对象来预览，不污染 currentChart
+  const previewChart = {
     id: chart.ID,
     name: chart.Name,
-    description: chart.description,
+    description: chart.Description,
     type: chart.Type,
     queryID: chart.QueryID || chart.queryID || chart.query_id,
     config: chart.Config,
-    title: '',
-    xField: '',
-    yField: '',
-    seriesField: '',
-    angleField: '',
-    valueField: '',
-    color: '',
-    stack: false,
-    radius: '',
-    min: '',
-    max: '',
-    pieType: chart.Type === 'pie' ? 'pie' : 'doughnut'
-  })
-  try {
-    const cfg = JSON.parse(chart.Config || '{}')
-    if (cfg.title) currentChart.title = cfg.title
-    if (cfg.xField) currentChart.xField = cfg.xField
-    if (cfg.yField) currentChart.yField = cfg.yField
-    if (cfg.seriesField) currentChart.seriesField = cfg.seriesField
-    if (cfg.angleField) currentChart.angleField = cfg.angleField
-    if (cfg.valueField) currentChart.valueField = cfg.valueField
-    if (cfg.color) currentChart.color = Array.isArray(cfg.color) ? cfg.color.join(',') : cfg.color
-    if (cfg.stack !== undefined) currentChart.stack = cfg.stack
-    if (cfg.radius) currentChart.radius = cfg.radius
-    if (cfg.min !== undefined) currentChart.min = cfg.min
-    if (cfg.max !== undefined) currentChart.max = cfg.max
-  } catch {}
+  };
+  
   previewVisible.value = true
+  
+  // 异步渲染
+  nextTick(async () => {
+    if (!chartInstance) {
+      chartInstance = echarts.init(chartRef.value)
+    } else {
+      chartInstance.clear()
+    }
+    
+    try {
+      const config = JSON.parse(previewChart.config || '{}')
+      const rawData = await getQueryData(previewChart.queryID)
+      const data = Array.isArray(rawData) ? rawData : (rawData.data || [])
+      const option = convertToEchartsOption(config, data)
+      chartInstance.setOption(option)
+      chartInstance.resize()
+    } catch (e) {
+      console.error("图表预览失败:", e)
+      chartInstance.clear()
+    }
+  });
 }
 
 const handleSave = async () => {
@@ -426,8 +427,23 @@ function buildConfig(form, type) {
     } else {
       config.radius = '80%'
     }
-  }
-  if (['bar', 'line', 'scatter', 'heatmap'].includes(type)) {
+  } else if (type === '3d-bar') {
+    config.xField = form.xField || ''
+    config.yField = form.yField || ''
+    config.zField = form.zField || ''
+    config.legend = { show: true }
+    config.tooltip = { show: true }
+    config.grid3D = {
+      boxWidth: 100,
+      boxHeight: 100,
+      boxDepth: 100,
+      viewControl: {
+        alpha: 20,
+        beta: 40,
+        distance: 200
+      }
+    }
+  } else if (type === 'heatmap') {
     config.xField = form.xField || ''
     config.yField = form.yField || ''
     config.seriesField = form.seriesField || ''
@@ -437,12 +453,6 @@ function buildConfig(form, type) {
     config.legend = { show: true, position: 'top' }
     config.tooltip = { show: true, trigger: 'axis' }
     config.label = { show: true, position: 'top' }
-  } else if (type === 'pie') {
-    config.angleField = form.angleField || ''
-    config.valueField = form.valueField || ''
-    config.radius = config.radius || form.radius
-    config.label = { show: true, position: 'outside' }
-    config.legend = { show: true, position: 'top' }
   } else if (type === 'gauge') {
     config.valueField = form.valueField || ''
     config.min = form.min
@@ -496,7 +506,66 @@ watch(previewVisible, async (val) => {
 })
 
 function convertToEchartsOption(config, data = []) {
+  console.log('--- Chart Conversion Start ---');
+  console.log('Input Config:', JSON.parse(JSON.stringify(config)));
+  console.log('Input Data:', JSON.parse(JSON.stringify(data)));
+
   const type = config.type || currentChart.type
+  let option = {}; // Default to an empty object
+
+  if (type === '3d-bar') {
+    const xField = config.xField
+    const yField = config.yField
+    const zField = config.zField
+
+    if (!xField || !yField || !zField || !data || data.length === 0) {
+      return { title: { text: config.title || '数据或配置不完整' } }
+    }
+
+    const xData = [...new Set(data.map(item => item[xField]))]
+    const yData = [...new Set(data.map(item => item[yField]))]
+    
+    const seriesData = data.map(item => [
+      xData.indexOf(item[xField]),
+      yData.indexOf(item[yField]),
+      Number(item[zField]) || 0
+    ])
+
+    const maxZ = Math.max(...seriesData.map(item => item[2]), 0)
+
+    option = {
+      title: { text: config.title || '' },
+      tooltip: {},
+      visualMap: {
+        max: maxZ,
+        inRange: {
+          color: config.color || ['#1890ff', '#2fc25b', '#facc14', '#f5222d', '#8d4eda']
+        }
+      },
+      xAxis3D: { type: 'category', data: xData, name: xField },
+      yAxis3D: { type: 'category', data: yData, name: yField },
+      zAxis3D: { type: 'value', name: zField },
+      grid3D: config.grid3D || {},
+      series: [{
+        type: 'bar3D',
+        data: seriesData,
+        shading: 'lambert',
+        label: {
+          show: !!config.label,
+          fontSize: 16,
+          borderWidth: 1
+        },
+        emphasis: {
+          label: {
+            show: !!config.label,
+            fontSize: 20,
+            fontWeight: 'bold'
+          }
+        }
+      }]
+    }
+  }
+
   if (type === 'pie') {
     const keys = Object.keys(data[0] || {})
     const angleField = config.angleField || config.valueField || keys.find(k => typeof data[0][k] === 'number') || keys[1] || ''
@@ -526,7 +595,7 @@ function convertToEchartsOption(config, data = []) {
         data: pieData
       }]
     }
-    return pieOption
+    option = pieOption
   }
   if (type === 'heatmap') {
     const allKeys = Object.keys(data[0] || {})
@@ -560,7 +629,6 @@ function convertToEchartsOption(config, data = []) {
         label: { show: true }
       }]
     }
-    return option
   }
   if (type === 'gauge') {
     const valueField = config.valueField || Object.keys(data[0] || {})[0] || ''
@@ -577,7 +645,6 @@ function convertToEchartsOption(config, data = []) {
         data: [{ value }]
       }]
     }
-    return option
   }
   if (type === 'radar') {
     const angleField = config.angleField || Object.keys(data[0] || {})[1] || ''
@@ -595,7 +662,7 @@ function convertToEchartsOption(config, data = []) {
         })
       }))
     }]
-    return {
+    option = {
       title: { text: config.title || '' },
       tooltip: config.tooltip || {},
       legend: { data: groups },
@@ -634,39 +701,44 @@ function convertToEchartsOption(config, data = []) {
         data: funnelData
       }]
     }
-    return option
   }
   // 其他类型
-  const allKeys = Object.keys(data[0] || {})
-  const xField = config.xField || allKeys[0] || ''
-  const yField = config.yField || allKeys[1] || ''
-  let seriesField = config.seriesField
-  if (!seriesField) {
-    seriesField = allKeys.find(k => k !== xField && k !== yField) || ''
+  if (Object.keys(option).length === 0) {
+    const allKeys = Object.keys(data[0] || {})
+    const xField = config.xField || allKeys[0] || ''
+    const yField = config.yField || allKeys[1] || ''
+    let seriesField = config.seriesField
+    if (!seriesField) {
+      seriesField = allKeys.find(k => k !== xField && k !== yField) || ''
+    }
+    const xAxisData = [...new Set(data.map(d => d[xField]))]
+    const groups = seriesField ? [...new Set(data.map(d => d[seriesField]))] : ['']
+    const series = groups.map(group => ({
+      name: group,
+      type: currentChart.type,
+      connectNulls: true,
+      data: xAxisData.map(x => {
+        const found = seriesField ? data.find(d => d[xField] === x && d[seriesField] === group) : data.find(d => d[xField] === x)
+        return found ? found[yField] : null
+      })
+    }))
+    option = {
+      title: { text: config.title || '' },
+      tooltip: config.tooltip || {},
+      legend: { data: groups },
+      color: config.color || undefined,
+      xAxis: {
+        type: 'category',
+        data: xAxisData
+      },
+      yAxis: config.yAxis || {},
+      series
+    }
   }
-  const xAxisData = [...new Set(data.map(d => d[xField]))]
-  const groups = seriesField ? [...new Set(data.map(d => d[seriesField]))] : ['']
-  const series = groups.map(group => ({
-    name: group,
-    type: currentChart.type,
-    connectNulls: true,
-    data: xAxisData.map(x => {
-      const found = seriesField ? data.find(d => d[xField] === x && d[seriesField] === group) : data.find(d => d[xField] === x)
-      return found ? found[yField] : null
-    })
-  }))
-  return {
-    title: { text: config.title || '' },
-    tooltip: config.tooltip || {},
-    legend: { data: groups },
-    color: config.color || undefined,
-    xAxis: {
-      type: 'category',
-      data: xAxisData
-    },
-    yAxis: config.yAxis || {},
-    series
-  }
+
+  console.log('Output ECharts Option:', JSON.parse(JSON.stringify(option)));
+  console.log('--- Chart Conversion End ---');
+  return option;
 }
 
 // 导出图片功能
