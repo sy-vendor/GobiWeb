@@ -1000,25 +1000,22 @@ function convertToEchartsOption(config, data = []) {
     function round2(val) {
       return Math.round(Number(val) * 100) / 100;
     }
-    const xDataRaw = data.map(item => round2(item[xField]));
-    const yDataRaw = data.map(item => round2(item[yField]));
-    const xData = [...new Set(xDataRaw)].sort((a, b) => a - b);
-    const yData = [...new Set(yDataRaw)].sort((a, b) => a - b);
+    // 归一化x/y到从0开始
+    const minX = Math.min(...data.map(item => Number(item[xField])));
+    const minY = Math.min(...data.map(item => Number(item[yField])));
+    const pointData = data.map(item => [
+      round2(item[xField]) - minX,
+      round2(item[yField]) - minY,
+      Number(item[zField])
+    ]);
 
-    // 构造zMatrix，自动补齐所有x/y组合
-    const zMatrix = yData.map(y =>
-      xData.map(x => {
-        const found = data.find(d => round2(d[xField]) === x && round2(d[yField]) === y);
-        return found ? Number(found[zField]) : 0;
-      })
-    );
 
     option = {
       title: { text: config.title || '' },
       tooltip: { show: true },
       visualMap: {
-        min: Math.min(...zMatrix.flat()),
-        max: Math.max(...zMatrix.flat()),
+        min: Math.min(...pointData.map(p => p[2])),
+        max: Math.max(...pointData.map(p => p[2])),
         calculable: true,
         realtime: false,
         inRange: {
@@ -1028,8 +1025,8 @@ function convertToEchartsOption(config, data = []) {
           ]
         }
       },
-      xAxis3D: { type: 'category', name: xField, data: xData },
-      yAxis3D: { type: 'category', name: yField, data: yData },
+      xAxis3D: { type: 'value', name: xField },
+      yAxis3D: { type: 'value', name: yField },
       zAxis3D: { type: 'value', name: zField },
       grid3D: config.grid3D || {
         boxWidth: 100,
@@ -1041,7 +1038,7 @@ function convertToEchartsOption(config, data = []) {
         type: 'surface',
         wireframe: { show: true },
         shading: 'color',
-        data: zMatrix
+        data: pointData
       }]
     };
   }
