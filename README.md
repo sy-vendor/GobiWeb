@@ -2,6 +2,16 @@
 
 Gobi BI 是一套现代化的商业智能（BI）解决方案，本项目是其前端实现，基于 Vue 3 和 Element Plus 构建，提供数据可视化、查询与报告等核心功能。
 
+## 📸 功能预览
+
+| 仪表盘 (Dashboard) | 图表管理 (Charts) |
+| :---: | :---: |
+| ![仪表盘](images/dashboard.png) | ![图表管理](images/charts.png) |
+
+| 报告管理 (Reports) |
+| :---: |
+| ![报告管理](images/chart-preview.png) |
+
 ## ✨ 核心功能
 
 - **仪表盘**: 系统核心指标、查询趋势与热门查询一览。
