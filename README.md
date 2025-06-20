@@ -1,110 +1,79 @@
-# Gobi Web
+# Gobi BI 系统前端
 
-Gobi Web 是一个现代化的商业智能（BI）系统前端界面，基于 Vue 3 和 Element Plus 构建，提供强大的数据可视化和分析能力。
+Gobi BI 是一套现代化的商业智能（BI）解决方案，本项目是其前端实现，基于 Vue 3 和 Element Plus 构建，提供数据可视化、查询与报告等核心功能。
 
-## 功能特性
+## ✨ 核心功能
 
-![仪表盘](images/dashboard.png)
-> 仪表盘：系统总览、查询趋势、热门查询一目了然
+- **仪表盘**: 系统核心指标、查询趋势与热门查询一览。
+- **查询管理**: 支持 SQL 查询的创建、执行与结果预览。
+- **图表管理**: 支持多种图表类型，可灵活配置并导出为图片。
+- **报告管理**: 支持自动化生成日报、周报、月报，并可下载。
+- **模板管理**: 支持上传 Excel 模板，用于生成定制化报告。
+- **数据源与用户管理**: 提供基础的系统管理功能。
 
-![图表管理](images/charts.png)
-> 图表管理：多类型图表统一管理，支持一键预览与编辑
+## 🛠️ 技术栈
 
-![图表预览与导出](images/chart-preview.png)
-> 图表预览弹窗：支持导出图片与打印，交互便捷
+- **前端框架**: Vue 3 (组合式 API)
+- **UI 组件库**: Element Plus
+- **构建工具**: Vite
+- **图表库**: ECharts
+- **HTTP**: Axios (已封装请求/响应拦截器)
+- **路由**: Vue Router (包含路由守卫)
+- **样式**: SCSS
 
-- 🎨 现代化的用户界面设计
-- 📊 丰富的数据可视化功能
-  - 支持 8 种图表类型：柱状图、折线图、饼图、散点图、雷达图、热力图、仪表盘、漏斗图
-  - 智能数据字段适配，自动识别数据类型
-  - 灵活的图表配置和样式定制
-- 🖼️ 图表导出与打印功能
-  - 一键导出图表为高质量 PNG 图片
-  - 支持图表打印，自动生成打印预览
-  - 2倍像素比率，确保图片清晰度
-- 🔍 灵活的查询管理
-  - 可视化 SQL 查询编辑器
-  - 查询结果实时预览
-  - 查询历史记录管理
-- 📁 数据源管理
-  - 支持 MySQL、PostgreSQL、SQLite 等多种数据库
-  - 数据源连接测试
-  - 公开/私有数据源权限控制
-- 📋 模板管理
-  - Excel 模板上传和管理
-  - 模板分类和描述
-- 👥 完善的用户权限管理
-- 📱 响应式设计，支持移动端
-- 🔒 安全的身份认证
+## 🚀 快速开始
 
-## 技术栈
+1.  **克隆项目**
+    ```bash
+    git clone <your-repo-url>
+    cd GobiWeb
+    ```
 
-- **前端框架**: Vue 3 - 渐进式 JavaScript 框架
-- **构建工具**: Vite - 下一代前端构建工具
-- **UI 组件库**: Element Plus - 基于 Vue 3 的组件库
-- **图表库**: ECharts - 强大的数据可视化图表库
-- **路由管理**: Vue Router - Vue.js 官方路由管理器
-- **状态管理**: Pinia - Vue 的状态管理库
-- **HTTP 客户端**: Axios - 基于 Promise 的 HTTP 客户端
-- **样式预处理**: SCSS - CSS 预处理器
+2.  **安装依赖**
+    ```bash
+    npm install
+    ```
 
-## 开发环境要求
+3.  **启动开发服务器**
+    ```bash
+    npm run dev
+    ```
+    服务将运行在 `http://localhost:5173`。
 
-- Node.js >= 16.0.0
-- npm >= 7.0.0
+4.  **构建生产版本**
+    ```bash
+    npm run build
+    ```
 
-## 快速开始
-
-1. 克隆项目
-```bash
-git clone git@github.com:sy-vendor/GobiWeb.git
-cd GobiWeb
-```
-
-2. 安装依赖
-```bash
-npm install
-```
-
-3. 启动开发服务器
-```bash
-npm run dev
-```
-
-4. 构建生产版本
-```bash
-npm run build
-```
-
-## 项目结构
+## 📂 项目结构
 
 ```
-GobiWeb/
-├── src/                    # 源代码目录
-│   ├── assets/            # 静态资源
-│   ├── components/        # 公共组件
-│   ├── layouts/           # 布局组件
-│   │   └── MainLayout.vue # 主布局组件
-│   ├── router/            # 路由配置
-│   │   └── index.js       # 路由定义
-│   ├── styles/            # 全局样式
-│   │   └── main.scss      # 主样式文件
-│   ├── views/             # 页面组件
-│   │   ├── Dashboard.vue  # 仪表盘
-│   │   ├── Charts.vue     # 图表管理
-│   │   ├── Queries.vue    # 查询管理
-│   │   ├── DataSources.vue # 数据源管理
-│   │   ├── Templates.vue  # 模板管理
-│   │   ├── Users.vue      # 用户管理
-│   │   └── Login.vue      # 登录页面
-│   ├── App.vue           # 根组件
-│   └── main.js           # 入口文件
-├── public/                # 公共资源目录
-├── index.html            # HTML 模板
-├── vite.config.js        # Vite 配置
-├── package.json          # 项目配置
-└── README.md            # 项目说明
+/src
+├── layouts/       # 主体布局
+├── views/         # 页面视图
+├── components/    # 可复用组件
+├── router/        # 路由配置
+├── utils/         # 工具函数 (如 axios 封装)
+├── styles/        # 全局样式
+├── assets/        # 静态资源
+├── main.js        # 入口文件
+└── App.vue        # 根组件
 ```
+
+## ⚙️ 后端配置
+
+开发模式下，Vite 已配置好代理，所有 `/api` 开头的请求都会被转发到 `http://localhost:8080`。请确保后端服务在该地址运行。
+
+## 🤝 开发规范
+
+- **代码风格**: 遵循 ESLint 和 Prettier 规范。
+- **提交信息**: 建议遵循 `type(scope): subject` 的格式 (例如: `feat(reports): add export button`)。
+  - `feat`: 新功能
+  - `fix`: 修复 Bug
+  - `docs`: 文档变更
+  - `style`: 代码格式
+  - `refactor`: 代码重构
+  - `chore`: 构建或工具变动
 
 ## 主要功能模块
 
