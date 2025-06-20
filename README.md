@@ -8,9 +8,9 @@ Gobi BI 是一套现代化的商业智能（BI）解决方案，本项目是其�
 | :---: | :---: |
 | ![仪表盘](images/dashboard.png) | ![图表管理](images/charts.png) |
 
-| 报告管理 (Reports) |
+| 图表预览 (Chart Preview) |
 | :---: |
-| ![报告管理](images/chart-preview.png) |
+| ![图表预览](images/chart-preview.png) |
 
 ## ✨ 核心功能
 
