@@ -84,6 +84,7 @@
           <el-select v-model="currentChart.type" style="width: 100%">
             <el-option label="柱状图" value="bar" />
             <el-option label="3D柱状图" value="3d-bar" />
+            <el-option label="3D散点图" value="3d-scatter" />
             <el-option label="折线图" value="line" />
             <el-option label="饼图" value="pie" />
             <el-option label="散点图" value="scatter" />
@@ -113,16 +114,24 @@
           <el-input v-model="currentChart.title" />
         </el-form-item>
         
-        <el-form-item label="X字段" v-if="isXYType || is3DBar">
+        <el-form-item label="X字段" v-if="isXYType || is3DType">
           <el-input v-model="currentChart.xField" />
         </el-form-item>
         
-        <el-form-item label="Y字段" v-if="isXYType || is3DBar">
+        <el-form-item label="Y字段" v-if="isXYType || is3DType">
           <el-input v-model="currentChart.yField" />
         </el-form-item>
         
-        <el-form-item label="Z字段" v-if="is3DBar">
+        <el-form-item label="Z字段" v-if="is3DType">
           <el-input v-model="currentChart.zField" />
+        </el-form-item>
+        
+        <el-form-item label="颜色字段" v-if="is3DScatter">
+          <el-input v-model="currentChart.colorField" placeholder="用于区分颜色的数据列名" />
+        </el-form-item>
+        
+        <el-form-item label="大小字段" v-if="is3DScatter">
+          <el-input v-model="currentChart.sizeField" placeholder="决定散点大小的数据列名" />
         </el-form-item>
         
         <el-form-item label="分组字段" v-if="isXYType || isRadar || isFunnel">
@@ -218,6 +227,7 @@ const previewVisible = ref(false)
 const chartRef = ref(null)
 const exporting = ref(false)
 let chartInstance = null
+const chartForm = ref(null)
 
 const currentChart = reactive({
   id: null,
@@ -229,6 +239,8 @@ const currentChart = reactive({
   xField: '',
   yField: '',
   zField: '',
+  colorField: '',
+  sizeField: '',
   seriesField: '',
   angleField: '',
   valueField: '',
@@ -248,98 +260,122 @@ const rules = {
     { required: true, message: '请选择图表类型', trigger: 'change' }
   ],
   queryID: [
-    { required: true, message: '请选择数据查询', trigger: 'change' }
-  ],
-  xField: [
-    { required: true, message: '请输入X轴字段', trigger: 'blur' }
-  ],
-  yField: [
-    { required: true, message: '请输入Y轴字段', trigger: 'blur' }
+    { required: true, message: '请选择一个查询', trigger: 'change' }
   ]
 }
 
-const isXYType = computed(() => ['bar', 'line', 'scatter', 'heatmap'].includes(currentChart.type))
-const is3DBar = computed(() => currentChart.type === '3d-bar')
+const isXYType = computed(() =>
+  ['bar', 'line', 'scatter', 'heatmap'].includes(currentChart.type)
+)
 const isPie = computed(() => currentChart.type === 'pie')
 const isGauge = computed(() => currentChart.type === 'gauge')
 const isRadar = computed(() => currentChart.type === 'radar')
 const isFunnel = computed(() => currentChart.type === 'funnel')
+const is3DType = computed(() => ['3d-bar', '3d-scatter'].includes(currentChart.type))
+const is3DScatter = computed(() => currentChart.type === '3d-scatter')
+
+const resetForm = () => {
+  nextTick(() => {
+    if (chartForm.value) {
+      chartForm.value.resetFields()
+    }
+  })
+  Object.assign(currentChart, {
+    id: null,
+    name: '',
+    description: '',
+    type: 'bar',
+    queryID: null,
+    title: '',
+    xField: '',
+    yField: '',
+    zField: '',
+    colorField: '',
+    sizeField: '',
+    seriesField: '',
+    angleField: '',
+    valueField: '',
+    color: '',
+    stack: false,
+    radius: '',
+    min: '',
+    max: '',
+    pieType: 'pie'
+  })
+}
 
 const fetchCharts = async () => {
   try {
-    const response = await axios.get('/api/charts')
+    const token = localStorage.getItem('token')
+    const response = await axios.get('/api/charts', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
     charts.value = response.data
   } catch (error) {
     ElMessage.error('获取图表列表失败')
+    console.error(error)
   }
 }
 
 const fetchQueries = async () => {
   try {
-    const response = await axios.get('/api/queries')
-    queries.value = Array.isArray(response.data)
-      ? response.data
-      : (response.data.data || [])
+    const token = localStorage.getItem('token')
+    const response = await axios.get('/api/queries', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    queries.value = response.data
   } catch (error) {
     ElMessage.error('获取查询列表失败')
-    queries.value = []
   }
 }
 
 const handleCreate = () => {
+  resetForm()
   dialogType.value = 'create'
-  currentChart.id = null
-  currentChart.name = ''
-  currentChart.description = ''
-  currentChart.type = 'bar'
-  currentChart.queryID = null
-  currentChart.title = ''
-  currentChart.xField = ''
-  currentChart.yField = ''
-  currentChart.zField = ''
-  currentChart.seriesField = ''
-  currentChart.angleField = ''
-  currentChart.valueField = ''
-  currentChart.color = ''
-  currentChart.stack = false
-  currentChart.radius = ''
-  currentChart.min = ''
-  currentChart.max = ''
-  currentChart.pieType = 'pie'
   dialogVisible.value = true
 }
 
-const handleEdit = (chart) => {
-  dialogType.value = 'edit'
-  // 先重置，避免旧数据干扰
-  handleCreate()
+const handleEdit = chartToEdit => {
+  // console.log('Editing chart data:', chartToEdit);
+  resetForm()
   dialogType.value = 'edit'
   
-  Object.assign(currentChart, {
-    id: chart.ID,
-    name: chart.Name,
-    description: chart.description,
-    type: chart.Type,
-    queryID: chart.QueryID || chart.queryID || chart.query_id,
-  })
+  nextTick(() => {
+    const { ID, Name, description, Type, QueryID, Config } = chartToEdit
+    let config = {}
+    try {
+      config = JSON.parse(Config || '{}')
+    } catch (e) {
+      console.error('解析图表配置失败', e)
+    }
 
-  try {
-    const cfg = JSON.parse(chart.Config || '{}')
-    if (cfg.title) currentChart.title = cfg.title
-    if (cfg.xField) currentChart.xField = cfg.xField
-    if (cfg.yField) currentChart.yField = cfg.yField
-    if (cfg.zField) currentChart.zField = cfg.zField
-    if (cfg.seriesField) currentChart.seriesField = cfg.seriesField
-    if (cfg.angleField) currentChart.angleField = cfg.angleField
-    if (cfg.valueField) currentChart.valueField = cfg.valueField
-    if (cfg.color) currentChart.color = Array.isArray(cfg.color) ? cfg.color.join(',') : cfg.color
-    if (cfg.stack !== undefined) currentChart.stack = cfg.stack
-    if (cfg.radius) currentChart.radius = cfg.radius
-    if (cfg.min !== undefined) currentChart.min = cfg.min
-    if (cfg.max !== undefined) currentChart.max = cfg.max
-    if (cfg.pieType) currentChart.pieType = cfg.pieType
-  } catch {}
-  dialogVisible.value = true
+    const newChartState = {
+      id: ID,
+      name: Name,
+      description: description,
+      type: Type,
+      queryID: QueryID,
+      title: config.title || '',
+      color: Array.isArray(config.color) ? config.color.join(',') : (config.color || ''),
+      xField: config.xField || '',
+      yField: config.yField || '',
+      zField: config.zField || '',
+      colorField: config.colorField || '',
+      sizeField: config.sizeField || '',
+      seriesField: config.seriesField || '',
+      angleField: config.angleField || '',
+      valueField: config.valueField || '',
+      stack: config.stack || false,
+      radius: config.radius || '',
+      min: config.min || '',
+      max: config.max || '',
+      pieType: config.pieType || 'pie'
+    };
+
+    Object.assign(currentChart, newChartState);
+
+    dialogVisible.value = true
+  })
 }
 
 const handleDelete = async (chart) => {
@@ -381,6 +417,7 @@ const handlePreview = (chart) => {
     
     try {
       const config = JSON.parse(previewChart.config || '{}')
+      config.type = previewChart.type
       const rawData = await getQueryData(previewChart.queryID)
       const data = Array.isArray(rawData) ? rawData : (rawData.data || [])
       const option = convertToEchartsOption(config, data)
@@ -394,27 +431,83 @@ const handlePreview = (chart) => {
 }
 
 const handleSave = async () => {
-  try {
-    const config = buildConfig(currentChart, currentChart.type)
-    const payload = {
-      name: currentChart.name,
-      type: currentChart.type,
-      query_id: currentChart.queryID,
-      config: JSON.stringify(config),
-      description: currentChart.description
+  if (!chartForm.value) return
+  await chartForm.value.validate(async (valid) => {
+    if (valid) {
+      // 创建 currentChart 的一个非响应式快照，确保数据在保存过程中不变
+      const chartModel = JSON.parse(JSON.stringify(currentChart));
+      const type = chartModel.type;
+
+      const config = {
+        title: chartModel.title,
+        color: chartModel.color ? chartModel.color.split(',').filter(c => c.trim()) : [],
+        legend: true,
+        tooltip: true
+      }
+      
+      if (['bar', 'line', 'scatter', 'heatmap'].includes(type)) {
+        config.xField = chartModel.xField
+        config.yField = chartModel.yField
+        config.seriesField = chartModel.seriesField
+        config.stack = chartModel.stack
+      }
+
+      if (['3d-bar', '3d-scatter'].includes(type)) {
+        config.xField = chartModel.xField
+        config.yField = chartModel.yField
+        config.zField = chartModel.zField
+        config.colorField = chartModel.colorField
+        config.sizeField = chartModel.sizeField
+      }
+      
+      if (type === 'pie') {
+        config.angleField = chartModel.angleField
+        config.valueField = chartModel.valueField
+        config.radius = chartModel.radius
+        config.pieType = chartModel.pieType
+      }
+      
+      if (type === 'gauge') {
+        config.valueField = chartModel.valueField
+        config.min = chartModel.min
+        config.max = chartModel.max
+      }
+
+      if (type === 'radar') {
+        config.valueField = chartModel.valueField
+        config.seriesField = chartModel.seriesField
+        config.radius = chartModel.radius
+      }
+      
+      if (type === 'funnel') {
+        config.valueField = chartModel.valueField
+        config.seriesField = chartModel.seriesField
+      }
+      
+      const chartData = {
+        name: chartModel.name,
+        description: chartModel.description,
+        type: chartModel.type,
+        queryID: chartModel.queryID,
+        config: JSON.stringify(config)
+      }
+      
+      try {
+        if (dialogType.value === 'create') {
+          await axios.post('/api/charts', chartData)
+          ElMessage.success('图表创建成功')
+        } else {
+          await axios.put(`/api/charts/${chartModel.id}`, chartData)
+          ElMessage.success('图表更新成功')
+        }
+        dialogVisible.value = false
+        fetchCharts()
+      } catch (error) {
+        ElMessage.error(dialogType.value === 'create' ? '图表创建失败' : '图表更新失败')
+        console.error(error)
+      }
     }
-    if (dialogType.value === 'create') {
-      await axios.post('/api/charts', payload)
-      ElMessage.success('创建成功')
-    } else {
-      await axios.put(`/api/charts/${currentChart.id}`, payload)
-      ElMessage.success('更新成功')
-    }
-    dialogVisible.value = false
-    fetchCharts()
-  } catch (error) {
-    ElMessage.error(dialogType.value === 'create' ? '创建失败' : '更新失败')
-  }
+  })
 }
 
 function buildConfig(form, type) {
@@ -441,6 +534,35 @@ function buildConfig(form, type) {
         alpha: 20,
         beta: 40,
         distance: 200
+      }
+    }
+  } else if (type === '3d-scatter') {
+    config.xField = form.xField || ''
+    config.yField = form.yField || ''
+    config.zField = form.zField || ''
+    config.colorField = form.colorField || ''
+    config.sizeField = form.sizeField || ''
+    config.legend = { show: true }
+    config.tooltip = { show: true }
+    config.grid3D = {
+      boxWidth: 100,
+      boxHeight: 100,
+      boxDepth: 100,
+      viewControl: {
+        alpha: 20,
+        beta: 40,
+        distance: 200,
+        autoRotate: false,
+        autoRotateSpeed: 10
+      },
+      light: {
+        main: {
+          intensity: 1.2,
+          shadow: true
+        },
+        ambient: {
+          intensity: 0.3
+        }
       }
     }
   } else if (type === 'heatmap') {
@@ -489,29 +611,146 @@ watch(previewVisible, async (val) => {
       chartInstance.resize()
     }
     try {
-      const config = JSON.parse(currentChart.config || '{}')
-      // 查询数据 
-      const rawData = await getQueryData(currentChart.queryID)
-      const data = Array.isArray(rawData) ? rawData : (rawData.data || [])
-      const option = convertToEchartsOption(config, data)
-      if ((config.type || currentChart.type) === 'gauge') {
-        const valueField = config.valueField || Object.keys(data[0] || {})[0] || ''
-        const value = data.length > 0 ? Number(data[0][valueField]) : 0
-      }
-      chartInstance.setOption(option)
+      // 这里不需要处理，因为handlePreview已经处理了
+      // 这个watch主要是为了确保图表实例正确初始化
     } catch (e) {
+      console.error("图表初始化失败:", e)
       chartInstance.clear()
     }
   }
 })
 
 function convertToEchartsOption(config, data = []) {
-  console.log('--- Chart Conversion Start ---');
-  console.log('Input Config:', JSON.parse(JSON.stringify(config)));
-  console.log('Input Data:', JSON.parse(JSON.stringify(data)));
-
   const type = config.type || currentChart.type
   let option = {}; // Default to an empty object
+
+  if (type === '3d-scatter') {
+    const xField = config.xField
+    const yField = config.yField
+    const zField = config.zField
+    const colorField = config.colorField
+    const sizeField = config.sizeField
+
+    if (!xField || !yField || !zField || !data || data.length === 0) {
+      return { title: { text: config.title || '数据或配置不完整' } }
+    }
+
+    const series = [];
+    const legendData = [];
+    const colors = config.color || ['#5470C6', '#91CC75', '#FAC858', '#EE6666', '#73C0DE', '#3BA272', '#FC8452', '#9A60B4'];
+
+    if (colorField) {
+      const groups = [...new Set(data.map(item => item[colorField]))];
+      legendData.push(...groups);
+
+      groups.forEach((group, index) => {
+        const groupData = data.filter(item => item[colorField] === group);
+        series.push({
+          name: group,
+          type: 'scatter3D',
+          data: groupData.map(item => {
+            const point = {
+              value: [
+                Number(item[xField]) || 0,
+                Number(item[yField]) || 0,
+                Number(item[zField]) || 0
+              ],
+              itemStyle: {
+                color: colors[index % colors.length]
+              }
+            };
+            if (sizeField && item[sizeField]) {
+              point.symbolSize = Math.max(5, Math.min(30, Number(item[sizeField]) || 10));
+            }
+            return point;
+          }),
+          symbolSize: sizeField ? undefined : 10,
+          itemStyle: {
+            opacity: 0.8
+          },
+          emphasis: {
+            itemStyle: {
+              opacity: 1
+            }
+          }
+        });
+      });
+    } else {
+      series.push({
+        type: 'scatter3D',
+        data: data.map(item => {
+          const point = {
+            value: [
+              Number(item[xField]) || 0,
+              Number(item[yField]) || 0,
+              Number(item[zField]) || 0
+            ]
+          };
+          if (sizeField && item[sizeField]) {
+            point.symbolSize = Math.max(5, Math.min(30, Number(item[sizeField]) || 10));
+          }
+          return point;
+        }),
+        symbolSize: sizeField ? undefined : 10,
+        itemStyle: {
+          color: colors[0],
+          opacity: 0.8
+        }
+      });
+    }
+
+    const allX = data.map(item => Number(item[xField]) || 0);
+    const allY = data.map(item => Number(item[yField]) || 0);
+    const allZ = data.map(item => Number(item[zField]) || 0);
+
+    option = {
+      title: { text: config.title || '3D散点图' },
+      tooltip: {
+        formatter: function(params) {
+          const data = params.data;
+          let tooltip = (params.seriesName ? `${params.seriesName}<br/>` : '') +
+            `${xField}: ${data.value[0]}<br/>` +
+            `${yField}: ${data.value[1]}<br/>` +
+            `${zField}: ${data.value[2]}`;
+          if (sizeField && data.symbolSize) {
+            tooltip += `<br/>${sizeField}: ${data.symbolSize}`;
+          }
+          return tooltip;
+        }
+      },
+      legend: {
+        data: legendData,
+        orient: 'vertical',
+        right: 10,
+        top: 20
+      },
+      grid3D: {
+        boxWidth: 100,
+        boxHeight: 100,
+        boxDepth: 100,
+        viewControl: {
+          alpha: 20,
+          beta: 40,
+          distance: 200,
+          autoRotate: false,
+          autoRotateSpeed: 10
+        },
+        light: {
+          main: {
+            intensity: 1.2,
+            shadow: true
+          },
+          ambient: {
+            intensity: 0.3
+          }
+        }
+      },
+      xAxis3D: { type: 'value', name: xField, min: Math.min(...allX), max: Math.max(...allX) },
+      yAxis3D: { type: 'value', name: yField, min: Math.min(...allY), max: Math.max(...allY) },
+      zAxis3D: { type: 'value', name: zField, min: Math.min(...allZ), max: Math.max(...allZ) },
+      series: series
+    };
+  }
 
   if (type === '3d-bar') {
     const xField = config.xField
@@ -715,7 +954,7 @@ function convertToEchartsOption(config, data = []) {
     const groups = seriesField ? [...new Set(data.map(d => d[seriesField]))] : ['']
     const series = groups.map(group => ({
       name: group,
-      type: currentChart.type,
+      type: type,
       connectNulls: true,
       data: xAxisData.map(x => {
         const found = seriesField ? data.find(d => d[xField] === x && d[seriesField] === group) : data.find(d => d[xField] === x)
@@ -725,7 +964,7 @@ function convertToEchartsOption(config, data = []) {
     option = {
       title: { text: config.title || '' },
       tooltip: config.tooltip || {},
-      legend: { data: groups },
+      legend: { data: groups.filter(g => g) },
       color: config.color || undefined,
       xAxis: {
         type: 'category',
@@ -736,8 +975,6 @@ function convertToEchartsOption(config, data = []) {
     }
   }
 
-  console.log('Output ECharts Option:', JSON.parse(JSON.stringify(option)));
-  console.log('--- Chart Conversion End ---');
   return option;
 }
 

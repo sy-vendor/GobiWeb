@@ -34,26 +34,26 @@ Gobi BI 是一套现代化的商业智能（BI）解决方案，本项目是其�
 ## 🚀 快速开始
 
 1.  **克隆项目**
-    ```bash
+```bash
     git clone <your-repo-url>
-    cd GobiWeb
-    ```
+cd GobiWeb
+```
 
 2.  **安装依赖**
-    ```bash
-    npm install
-    ```
+```bash
+npm install
+```
 
 3.  **启动开发服务器**
-    ```bash
-    npm run dev
-    ```
+```bash
+npm run dev
+```
     服务将运行在 `http://localhost:5173`。
 
 4.  **构建生产版本**
-    ```bash
-    npm run build
-    ```
+```bash
+npm run build
+```
 
 ## 📂 项目结构
 
