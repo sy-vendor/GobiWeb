@@ -38,10 +38,10 @@
             {{ formatDateTime(row.LastRun) }}
           </template>
         </el-table-column>
-        <el-table-column prop="Active" label="状态" width="100">
+        <el-table-column prop="active" label="状态" width="100">
           <template #default="{ row }">
             <el-switch
-              v-model="row.Active"
+              v-model="row.active"
               @change="toggleScheduleStatus(row)"
               :loading="row.statusLoading"
             />
@@ -163,9 +163,9 @@
           >
             <el-option
               v-for="template in templateList"
-              :key="template.id"
-              :label="template.name"
-              :value="template.id"
+              :key="template.ID"
+              :label="template.Name"
+              :value="template.ID"
             />
           </el-select>
         </el-form-item>
@@ -201,6 +201,7 @@
 import { ref, onMounted, reactive, watch, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh } from '@element-plus/icons-vue'
+import { lo } from 'element-plus/es/locales.mjs'
 
 // 响应式数据
 const loading = ref(false)
@@ -268,10 +269,14 @@ const fetchScheduleList = async () => {
         'Authorization': `Bearer ${token}`
       }
     })
-    
     if (response.ok) {
       const data = await response.json()
-      scheduleList.value = data
+      // 兼容Active字段
+      const normalized = (Array.isArray(data) ? data : []).map(item => ({
+        ...item,
+        active: typeof item.active !== 'undefined' ? item.active : item.Active
+      }))
+      scheduleList.value = normalized
     } else {
       ElMessage.error('获取报告计划列表失败')
     }
@@ -296,7 +301,7 @@ const fetchReportList = async () => {
     
     if (response.ok) {
       const data = await response.json()
-      reportList.value = data
+      reportList.value = Array.isArray(data) ? data : []
     } else {
       ElMessage.error('获取报告列表失败')
     }
@@ -358,15 +363,24 @@ const fetchTemplateList = async () => {
     
     if (response.ok) {
       const data = await response.json()
-      templateList.value = data
+      if (Array.isArray(data)) {
+        templateList.value = data;
+      } else if (data && Array.isArray(data.data)) {
+        templateList.value = data.data;
+      } else {
+        templateList.value = [];
+        console.warn('Templates data is not in expected format:', data);
+      }
     } else {
-      const errorData = await response.json()
+      const errorData = await response.json().catch(() => ({}))
       console.error('获取模板列表失败:', errorData)
       ElMessage.error('获取模板列表失败')
+      templateList.value = []
     }
   } catch (error) {
     console.error('获取模板列表错误:', error)
     ElMessage.error('获取模板列表失败')
+    templateList.value = []
   }
 }
 
@@ -430,7 +444,7 @@ const editSchedule = (schedule) => {
     chart_ids: Array.isArray(schedule.Charts) ? schedule.Charts : JSON.parse(schedule.Charts || '[]').map(c => c.id),
     template_ids: Array.isArray(schedule.Templates) ? schedule.Templates : JSON.parse(schedule.Templates || '[]').map(t => t.id),
     cron_pattern: schedule.CronPattern || '',
-    active: schedule.Active || false
+    active: schedule.active || false
   })
   showCreateDialog.value = true
 }
@@ -482,18 +496,17 @@ const toggleScheduleStatus = async (schedule) => {
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        active: schedule.Active
+        active: schedule.active
       })
     })
-    
     if (response.ok) {
       ElMessage.success('状态更新成功')
     } else {
-      schedule.Active = !schedule.Active // 恢复原状态
+      schedule.active = !schedule.active 
       ElMessage.error('状态更新失败')
     }
   } catch (error) {
-    schedule.Active = !schedule.Active // 恢复原状态
+    schedule.active = !schedule.active 
     console.error('切换状态错误:', error)
     ElMessage.error('状态更新失败')
   } finally {
