@@ -35,7 +35,7 @@ Gobi BI 是一套现代化的商业智能（BI）解决方案，本项目是其�
 
 1.  **克隆项目**
 ```bash
-    git clone <your-repo-url>
+git clone https://github.com/sy-vendor/GobiWeb
 cd GobiWeb
 ```
 
