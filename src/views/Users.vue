@@ -12,10 +12,10 @@
       <el-table :data="users" style="width: 100%">
         <el-table-column prop="Username" label="用户名" />
         <el-table-column prop="Email" label="邮箱" />
-        <el-table-column prop="role" label="角色">
+        <el-table-column prop="Role" label="角色">
           <template #default="{ row }">
-            <el-tag :type="row.role === 'admin' ? 'danger' : 'primary'">
-              {{ row.role === 'admin' ? '管理员' : '普通用户' }}
+            <el-tag :type="row.Role === 'admin' ? 'danger' : 'primary'">
+              {{ row.Role === 'admin' ? '管理员' : '普通用户' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -33,7 +33,7 @@
               <el-button
                 type="danger"
                 link
-                :disabled="row.role === 'admin'"
+                :disabled="row.Role === 'admin'"
                 @click="handleDelete(row)"
               >
                 删除
@@ -142,6 +142,7 @@
 import { ref, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import axios from 'axios'
+import { lo } from 'element-plus/es/locales.mjs'
 
 const users = ref([])
 const dialogVisible = ref(false)
@@ -220,7 +221,10 @@ const handleCreate = () => {
 
 const handleEdit = (user) => {
   dialogType.value = 'edit'
-  Object.assign(currentUser, user)
+  currentUser.id = user.ID
+  currentUser.username = user.Username
+  currentUser.email = user.Email
+  currentUser.role = user.Role
   dialogVisible.value = true
 }
 
@@ -230,7 +234,7 @@ const handleDelete = async (user) => {
       type: 'warning'
     })
     
-    await axios.delete(`/api/users/${user.id}`)
+    await axios.delete(`/api/users/${user.ID}`)
     ElMessage.success('删除成功')
     fetchUsers()
   } catch (error) {
@@ -241,7 +245,7 @@ const handleDelete = async (user) => {
 }
 
 const handleResetPassword = (user) => {
-  resetPasswordData.userId = user.id
+  resetPasswordData.userId = user.ID
   resetPasswordData.password = ''
   resetPasswordData.confirmPassword = ''
   resetPasswordVisible.value = true

@@ -73,14 +73,18 @@ const fetchTemplateList = async () => {
   try {
     const res = await http.get('/templates')
     let list = res.data.data || res.data || []
-    templateList.value = list.map(item => ({
-      ...item,
-      id: item.id || item.ID,
-      ID: item.id || item.ID,
-      Name: item.name || item.Name,
-      Description: item.description || item.Description,
-      CreatedAt: item.created_at || item.CreatedAt
-    }))
+    if (Array.isArray(list)) {
+      templateList.value = list.map(item => ({
+        ...item,
+        id: item.id || item.ID,
+        ID: item.id || item.ID,
+        Name: item.name || item.Name,
+        Description: item.description || item.Description,
+        CreatedAt: item.created_at || item.CreatedAt
+      }))
+    } else {
+      templateList.value = []
+    }
   } catch (error) {
     console.error('获取模板列表失败:', error)
   }
