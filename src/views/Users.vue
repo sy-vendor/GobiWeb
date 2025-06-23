@@ -10,8 +10,8 @@
     
     <el-card class="user-list">
       <el-table :data="users" style="width: 100%">
-        <el-table-column prop="username" label="用户名" />
-        <el-table-column prop="email" label="邮箱" />
+        <el-table-column prop="Username" label="用户名" />
+        <el-table-column prop="Email" label="邮箱" />
         <el-table-column prop="role" label="角色">
           <template #default="{ row }">
             <el-tag :type="row.role === 'admin' ? 'danger' : 'primary'">
@@ -19,7 +19,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180" :formatter="formatDate" />
+        <el-table-column prop="CreatedAt" label="创建时间" width="180" :formatter="formatDate" />
         <el-table-column prop="last_login" label="最后登录" width="180" :formatter="formatDate" />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
