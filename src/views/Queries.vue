@@ -67,7 +67,7 @@
         
         <el-form-item label="数据源" prop="data_source_id">
           <el-select v-model="currentQuery.data_source_id" style="width: 100%" placeholder="请选择数据源">
-            <el-option v-for="ds in dataSources" :key="ds.ID" :label="ds.Name" :value="ds.ID" />
+            <el-option v-for="ds in dataSources" :key="ds.ID" :label="ds.Name" :value="String(ds.ID)" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -168,8 +168,11 @@ const handleEdit = (row) => {
     name: row.Name,
     description: row.Description,
     sql: row.SQL,
-    data_source_id: row.DataSourceID
+    data_source_id: row.DataSourceID || row.data_source_id || null
   })
+  if (currentQuery.data_source_id !== null) {
+    currentQuery.data_source_id = String(currentQuery.data_source_id);
+  }
   dialogVisible.value = true
 }
 
