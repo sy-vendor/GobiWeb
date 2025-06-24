@@ -94,6 +94,7 @@
             <el-option label="漏斗图" value="funnel" />
             <el-option label="3D曲面图" value="3d-surface" />
             <el-option label="3D气泡图" value="3d-bubble" />
+            <el-option label="面积图" value="area" />
           </el-select>
         </el-form-item>
         
@@ -136,7 +137,7 @@
           <el-input v-model="currentChart.sizeField" placeholder="决定散点大小的数据列名" />
         </el-form-item>
         
-        <el-form-item label="分组字段" v-if="isXYType || isRadar || isFunnel">
+        <el-form-item label="分组字段" v-if="isXYType || isRadar || isFunnel || isArea">
           <el-input v-model="currentChart.seriesField" />
         </el-form-item>
         
@@ -155,12 +156,23 @@
           </el-select>
         </el-form-item>
         
-        <el-form-item label="颜色">
-          <el-input v-model="currentChart.color" placeholder="如 #5470C6,#91CC75,#FAC858" />
+        <el-form-item label="颜色" v-if="isArea">
+          <el-input v-model="currentChart.color" placeholder="如 #1890ff,#2fc25b,#facc14" />
         </el-form-item>
-        
         <el-form-item label="堆叠" v-if="isXYType">
           <el-switch v-model="currentChart.stack" />
+        </el-form-item>
+        <el-form-item label="平滑曲线" v-if="isArea">
+          <el-switch v-model="currentChart.smooth" />
+        </el-form-item>
+        <el-form-item label="填充透明度" v-if="isArea">
+          <el-input-number v-model="currentChart.fillOpacity" :min="0" :max="1" :step="0.1" />
+        </el-form-item>
+        <el-form-item label="显示图例" v-if="isArea">
+          <el-switch v-model="currentChart.legend" />
+        </el-form-item>
+        <el-form-item label="显示提示框" v-if="isArea">
+          <el-switch v-model="currentChart.tooltip" />
         </el-form-item>
         
         <el-form-item label="半径" v-if="isPie || isRadar">
@@ -251,7 +263,11 @@ const currentChart = reactive({
   radius: '',
   min: '',
   max: '',
-  pieType: 'pie'
+  pieType: 'pie',
+  smooth: true,
+  fillOpacity: 0.6,
+  legend: true,
+  tooltip: true
 })
 
 const rules = {
@@ -267,7 +283,7 @@ const rules = {
 }
 
 const isXYType = computed(() =>
-  ['bar', 'line', 'scatter', 'heatmap'].includes(currentChart.type)
+  ['bar', 'line', 'scatter', 'heatmap', 'area'].includes(currentChart.type)
 )
 const isPie = computed(() => currentChart.type === 'pie')
 const isGauge = computed(() => currentChart.type === 'gauge')
@@ -276,6 +292,7 @@ const isFunnel = computed(() => currentChart.type === 'funnel')
 const is3DType = computed(() => ['3d-bar', '3d-scatter', '3d-surface', '3d-bubble'].includes(currentChart.type))
 const is3DScatter = computed(() => currentChart.type === '3d-scatter' || currentChart.type === '3d-bubble')
 const is3DBubble = computed(() => currentChart.type === '3d-bubble')
+const isArea = computed(() => currentChart.type === 'area')
 
 const resetForm = () => {
   nextTick(() => {
@@ -303,7 +320,11 @@ const resetForm = () => {
     radius: '',
     min: '',
     max: '',
-    pieType: 'pie'
+    pieType: 'pie',
+    smooth: true,
+    fillOpacity: 0.6,
+    legend: true,
+    tooltip: true
   })
 }
 
@@ -371,7 +392,11 @@ const handleEdit = chartToEdit => {
       radius: config.radius || '',
       min: config.min || '',
       max: config.max || '',
-      pieType: config.pieType || 'pie'
+      pieType: config.pieType || 'pie',
+      smooth: config.smooth !== undefined ? config.smooth : true,
+      fillOpacity: config.fillOpacity !== undefined ? config.fillOpacity : 0.6,
+      legend: config.legend !== undefined ? config.legend : true,
+      tooltip: config.tooltip !== undefined ? config.tooltip : true
     };
 
     Object.assign(currentChart, newChartState);
@@ -443,15 +468,20 @@ const handleSave = async () => {
       const config = {
         title: chartModel.title,
         color: chartModel.color ? chartModel.color.split(',').filter(c => c.trim()) : [],
-        legend: true,
-        tooltip: true
+        legend: chartModel.legend,
+        tooltip: chartModel.tooltip
       }
       
-      if (['bar', 'line', 'scatter', 'heatmap'].includes(type)) {
+      if (["bar", "line", "scatter", "heatmap", "area"].includes(type)) {
         config.xField = chartModel.xField
         config.yField = chartModel.yField
         config.seriesField = chartModel.seriesField
         config.stack = chartModel.stack
+      }
+      // 面积图专属配置
+      if (type === 'area') {
+        config.smooth = chartModel.smooth
+        config.fillOpacity = chartModel.fillOpacity
       }
 
       if (['3d-bar', '3d-scatter', '3d-surface', '3d-bubble'].includes(type)) {
@@ -1040,6 +1070,46 @@ function convertToEchartsOption(config, data = []) {
         shading: 'color',
         data: pointData
       }]
+    };
+  }
+  // 面积图专用逻辑
+  if (type === 'area') {
+    const xField = config.xField;
+    const yField = config.yField;
+    const seriesField = config.seriesField;
+    const stack = config.stack;
+    const smooth = config.smooth !== undefined ? config.smooth : true;
+    const fillOpacity = config.fillOpacity !== undefined ? config.fillOpacity : 0.6;
+    const color = config.color || ['#1890ff', '#2fc25b', '#facc14'];
+    const legend = config.legend !== false;
+    const tooltip = config.tooltip !== false;
+    
+    const xAxisData = [...new Set(data.map(d => d[xField]))];
+    const groups = seriesField ? [...new Set(data.map(d => d[seriesField]))] : [''];
+    const series = groups.map((group, idx) => ({
+      name: group,
+      type: 'line',
+      stack: stack ? 'Total' : undefined,
+      smooth,
+      areaStyle: { opacity: fillOpacity },
+      itemStyle: { color: color[idx % color.length] },
+      connectNulls: true,
+      data: xAxisData.map(x => {
+        const found = seriesField ? data.find(d => d[xField] === x && d[seriesField] === group) : data.find(d => d[xField] === x)
+        return found ? found[yField] : null
+      })
+    }));
+    option = {
+      title: { text: config.title || '' },
+      tooltip: tooltip ? { trigger: 'axis' } : undefined,
+      legend: legend ? { data: groups.filter(g => g) } : undefined,
+      color,
+      xAxis: {
+        type: 'category',
+        data: xAxisData
+      },
+      yAxis: { type: 'value' },
+      series
     };
   }
   // 其他类型
