@@ -9,51 +9,64 @@
     </div>
     
     <el-row :gutter="20">
-      <el-col
-        v-for="chart in charts"
-        :key="chart.id"
-        :xs="24"
-        :sm="12"
-        :md="8"
-        :lg="6"
+      <draggable
+        v-model="charts"
+        item-key="id"
+        :animation="200"
+        ghost-class="drag-ghost"
+        chosen-class="drag-chosen"
+        @end="onDragEnd"
+        :tag="'el-row'"
+        :gutter="20"
       >
-        <el-card class="chart-card" shadow="hover">
-          <template #header>
-            <div class="chart-header">
-              <span>{{ chart.Name }}</span>
-              <el-dropdown>
-                <el-button type="primary" link>
-                  <el-icon><More /></el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click="handleEdit(chart)">
-                      编辑
-                    </el-dropdown-item>
-                    <el-dropdown-item @click="handlePreview(chart)">
-                      预览
-                    </el-dropdown-item>
-                    <el-dropdown-item
-                      divided
-                      type="danger"
-                      @click="handleDelete(chart)"
-                    >
-                      删除
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-          
-          <div class="chart-content">
-            <div class="chart-description">{{ chart.Description }}</div>
-            <div class="chart-type">
-              <el-tag>{{ chart.Type }}</el-tag>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
+        <template #item="{ element: chart }">
+          <el-col
+            class="chart-col"
+            :xs="24"
+            :sm="12"
+            :md="8"
+            :lg="6"
+            :key="chart.id"
+          >
+            <el-card class="chart-card" shadow="hover">
+              <template #header>
+                <div class="chart-header">
+                  <span>{{ chart.Name }}</span>
+                  <el-dropdown>
+                    <el-button type="primary" link>
+                      <el-icon><More /></el-icon>
+                    </el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item @click="handleEdit(chart)">
+                          编辑
+                        </el-dropdown-item>
+                        <el-dropdown-item @click="handlePreview(chart)">
+                          预览
+                        </el-dropdown-item>
+                        <el-dropdown-item
+                          divided
+                          type="danger"
+                          @click="handleDelete(chart)"
+                        >
+                          删除
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </div>
+              </template>
+              
+              <div class="chart-content">
+                <div class="chart-description">{{ chart.Description }}</div>
+                <div class="chart-type">
+                  <el-tag>{{ chart.Type }}</el-tag>
+                </div>
+              </div>
+            </el-card>
+          </el-col>
+        </template>
+      </draggable>
     </el-row>
     
     <!-- 图表编辑对话框 -->
@@ -249,6 +262,7 @@ import { lo } from 'element-plus/es/locales.mjs'
 import * as echarts from 'echarts'
 import 'echarts-gl'
 import { Download, Printer } from '@element-plus/icons-vue'
+import draggable from 'vuedraggable'
 
 const charts = ref([])
 const queries = ref([])
@@ -362,7 +376,17 @@ const fetchCharts = async () => {
     const response = await axios.get('/api/charts', {
       headers: { Authorization: `Bearer ${token}` }
     })
-    charts.value = response.data
+    let data = response.data
+    // 读取本地顺序
+    const order = JSON.parse(localStorage.getItem('chartsOrder') || '[]')
+    if (order.length) {
+      // 按本地顺序排序，未包含的追加在后面
+      data = order
+        .map(id => data.find(c => c.id === id || c.ID === id))
+        .filter(Boolean)
+        .concat(data.filter(c => !order.includes(c.id || c.ID)))
+    }
+    charts.value = data
   } catch (error) {
     ElMessage.error('获取图表列表失败')
     console.error(error)
@@ -1384,6 +1408,12 @@ const handlePrint = () => {
   }
 }
 
+const onDragEnd = () => {
+  const ids = charts.value.map(c => c.id || c.ID)
+  localStorage.setItem('chartsOrder', JSON.stringify(ids))
+  ElMessage.success('排序已更新')
+}
+
 onMounted(() => {
   fetchCharts()
   fetchQueries()
@@ -1441,5 +1471,18 @@ onMounted(() => {
       gap: 10px;
     }
   }
-} 
+}
+
+.drag-ghost {
+  opacity: 0.5;
+}
+.drag-chosen {
+  border: 2px dashed #409EFF;
+}
+
+.chart-col {
+  padding-left: 10px;
+  padding-right: 10px;
+  box-sizing: border-box;
+}
 </style> 
