@@ -95,6 +95,7 @@
             <el-option label="3D曲面图" value="3d-surface" />
             <el-option label="3D气泡图" value="3d-bubble" />
             <el-option label="面积图" value="area" />
+            <el-option label="矩形树状图" value="treemap" />
           </el-select>
         </el-form-item>
         
@@ -129,7 +130,7 @@
           <el-input v-model="currentChart.zField" />
         </el-form-item>
         
-        <el-form-item label="颜色字段" v-if="is3DScatter">
+        <el-form-item label="颜色字段" v-if="is3DScatter || isTreemap">
           <el-input v-model="currentChart.colorField" placeholder="用于区分颜色的数据列名" />
         </el-form-item>
         
@@ -145,7 +146,7 @@
           <el-input v-model="currentChart.angleField" />
         </el-form-item>
         
-        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel">
+        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap">
           <el-input v-model="currentChart.valueField" />
         </el-form-item>
         
@@ -185,6 +186,10 @@
         
         <el-form-item label="最大值" v-if="isGauge">
           <el-input v-model="currentChart.max" />
+        </el-form-item>
+        
+        <el-form-item label="数据字段" v-if="isTreemap">
+          <el-input v-model="currentChart.dataField" placeholder="如 name" />
         </el-form-item>
       </el-form>
       
@@ -267,7 +272,8 @@ const currentChart = reactive({
   smooth: true,
   fillOpacity: 0.6,
   legend: true,
-  tooltip: true
+  tooltip: true,
+  dataField: '',
 })
 
 const rules = {
@@ -293,6 +299,7 @@ const is3DType = computed(() => ['3d-bar', '3d-scatter', '3d-surface', '3d-bubbl
 const is3DScatter = computed(() => currentChart.type === '3d-scatter' || currentChart.type === '3d-bubble')
 const is3DBubble = computed(() => currentChart.type === '3d-bubble')
 const isArea = computed(() => currentChart.type === 'area')
+const isTreemap = computed(() => currentChart.type === 'treemap')
 
 const resetForm = () => {
   nextTick(() => {
@@ -324,7 +331,8 @@ const resetForm = () => {
     smooth: true,
     fillOpacity: 0.6,
     legend: true,
-    tooltip: true
+    tooltip: true,
+    dataField: '',
   })
 }
 
@@ -396,7 +404,10 @@ const handleEdit = chartToEdit => {
       smooth: config.smooth !== undefined ? config.smooth : true,
       fillOpacity: config.fillOpacity !== undefined ? config.fillOpacity : 0.6,
       legend: config.legend !== undefined ? config.legend : true,
-      tooltip: config.tooltip !== undefined ? config.tooltip : true
+      tooltip: config.tooltip !== undefined ? config.tooltip : true,
+      dataField: config.dataField || '',
+      colorField: config.colorField || '',
+      valueField: config.valueField || ''
     };
 
     Object.assign(currentChart, newChartState);
@@ -516,6 +527,12 @@ const handleSave = async () => {
       if (type === 'funnel') {
         config.valueField = chartModel.valueField
         config.seriesField = chartModel.seriesField
+      }
+      
+      if (type === 'treemap') {
+        config.dataField = chartModel.dataField
+        config.valueField = chartModel.valueField
+        config.colorField = chartModel.colorField
       }
       
       const chartData = {
@@ -1143,6 +1160,22 @@ function convertToEchartsOption(config, data = []) {
       },
       yAxis: config.yAxis || {},
       series
+    }
+  }
+
+  if (type === 'treemap') {
+    const dataField = config.dataField || 'name'
+    const valueField = config.valueField || 'value'
+    const colorField = config.colorField || 'category'
+    // 假设 data 已经是树形结构
+    option = {
+      title: { text: config.title || '' },
+      tooltip: { show: true },
+      series: [{
+        type: 'treemap',
+        data: data, // 这里需要保证 data 是树形结构
+        label: { show: true, formatter: '{b}' }
+      }]
     }
   }
 
