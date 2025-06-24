@@ -96,6 +96,7 @@
             <el-option label="3D气泡图" value="3d-bubble" />
             <el-option label="面积图" value="area" />
             <el-option label="矩形树状图" value="treemap" />
+            <el-option label="树形图" value="tree" />
             <el-option label="旭日图" value="sunburst" />
           </el-select>
         </el-form-item>
@@ -147,7 +148,7 @@
           <el-input v-model="currentChart.angleField" />
         </el-form-item>
         
-        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst">
+        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree">
           <el-input v-model="currentChart.valueField" />
         </el-form-item>
         
@@ -191,6 +192,16 @@
         
         <el-form-item label="数据字段" v-if="isTreemap || isSunburst">
           <el-input v-model="currentChart.dataField" placeholder="如 name" />
+        </el-form-item>
+
+        <el-form-item label="ID字段" v-if="isTree">
+          <el-input v-model="currentChart.idField" placeholder="如 id" />
+        </el-form-item>
+        <el-form-item label="父ID字段" v-if="isTree">
+          <el-input v-model="currentChart.parentField" placeholder="如 parent_id" />
+        </el-form-item>
+        <el-form-item label="名称字段" v-if="isTree">
+          <el-input v-model="currentChart.nameField" placeholder="如 name" />
         </el-form-item>
       </el-form>
       
@@ -275,6 +286,9 @@ const currentChart = reactive({
   legend: true,
   tooltip: true,
   dataField: '',
+  idField: '',
+  parentField: '',
+  nameField: '',
 })
 
 const rules = {
@@ -302,6 +316,7 @@ const is3DBubble = computed(() => currentChart.type === '3d-bubble')
 const isArea = computed(() => currentChart.type === 'area')
 const isTreemap = computed(() => currentChart.type === 'treemap')
 const isSunburst = computed(() => currentChart.type === 'sunburst')
+const isTree = computed(() => currentChart.type === 'tree')
 
 const resetForm = () => {
   nextTick(() => {
@@ -335,6 +350,9 @@ const resetForm = () => {
     legend: true,
     tooltip: true,
     dataField: '',
+    idField: '',
+    parentField: '',
+    nameField: '',
   })
 }
 
@@ -408,8 +426,9 @@ const handleEdit = chartToEdit => {
       legend: config.legend !== undefined ? config.legend : true,
       tooltip: config.tooltip !== undefined ? config.tooltip : true,
       dataField: config.dataField || '',
-      colorField: config.colorField || '',
-      valueField: config.valueField || ''
+      idField: config.idField || '',
+      parentField: config.parentField || '',
+      nameField: config.nameField || '',
     };
 
     Object.assign(currentChart, newChartState);
@@ -541,6 +560,13 @@ const handleSave = async () => {
         config.dataField = chartModel.dataField
         config.valueField = chartModel.valueField
         config.colorField = chartModel.colorField
+      }
+
+      if (type === 'tree') {
+        config.idField = chartModel.idField
+        config.parentField = chartModel.parentField
+        config.nameField = chartModel.nameField
+        config.valueField = chartModel.valueField
       }
       
       const chartData = {
@@ -1203,7 +1229,46 @@ function convertToEchartsOption(config, data = []) {
     }
   }
 
+  if (type === 'tree') {
+    const idField = config.idField
+    const parentField = config.parentField
+    const nameField = config.nameField
+    const valueField = config.valueField
+    // 需要将平面数据转为树结构
+    const treeData = flatToTree(data, idField, parentField, nameField, valueField)
+    option = {
+      title: { text: config.title || '' },
+      tooltip: { show: true },
+      series: [{
+        type: 'tree',
+        data: treeData,
+        label: { position: 'left', verticalAlign: 'middle', align: 'right' },
+        leaves: { label: { position: 'right', verticalAlign: 'middle', align: 'left' } },
+        expandAndCollapse: true,
+        animationDuration: 550,
+        animationDurationUpdate: 750
+      }]
+    }
+  }
+
   return option;
+}
+
+function flatToTree(data, idField, parentField, nameField, valueField) {
+  const idMap = {}
+  data.forEach(item => {
+    idMap[item[idField]] = { ...item, name: item[nameField], value: item[valueField], children: [] }
+  })
+  const tree = []
+  data.forEach(item => {
+    const node = idMap[item[idField]]
+    if (item[parentField] && idMap[item[parentField]]) {
+      idMap[item[parentField]].children.push(node)
+    } else {
+      tree.push(node)
+    }
+  })
+  return tree
 }
 
 // 导出图片功能
