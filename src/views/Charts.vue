@@ -96,6 +96,7 @@
             <el-option label="3D气泡图" value="3d-bubble" />
             <el-option label="面积图" value="area" />
             <el-option label="矩形树状图" value="treemap" />
+            <el-option label="旭日图" value="sunburst" />
           </el-select>
         </el-form-item>
         
@@ -130,7 +131,7 @@
           <el-input v-model="currentChart.zField" />
         </el-form-item>
         
-        <el-form-item label="颜色字段" v-if="is3DScatter || isTreemap">
+        <el-form-item label="颜色字段" v-if="is3DScatter || isTreemap || isSunburst">
           <el-input v-model="currentChart.colorField" placeholder="用于区分颜色的数据列名" />
         </el-form-item>
         
@@ -146,7 +147,7 @@
           <el-input v-model="currentChart.angleField" />
         </el-form-item>
         
-        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap">
+        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst">
           <el-input v-model="currentChart.valueField" />
         </el-form-item>
         
@@ -188,7 +189,7 @@
           <el-input v-model="currentChart.max" />
         </el-form-item>
         
-        <el-form-item label="数据字段" v-if="isTreemap">
+        <el-form-item label="数据字段" v-if="isTreemap || isSunburst">
           <el-input v-model="currentChart.dataField" placeholder="如 name" />
         </el-form-item>
       </el-form>
@@ -300,6 +301,7 @@ const is3DScatter = computed(() => currentChart.type === '3d-scatter' || current
 const is3DBubble = computed(() => currentChart.type === '3d-bubble')
 const isArea = computed(() => currentChart.type === 'area')
 const isTreemap = computed(() => currentChart.type === 'treemap')
+const isSunburst = computed(() => currentChart.type === 'sunburst')
 
 const resetForm = () => {
   nextTick(() => {
@@ -530,6 +532,12 @@ const handleSave = async () => {
       }
       
       if (type === 'treemap') {
+        config.dataField = chartModel.dataField
+        config.valueField = chartModel.valueField
+        config.colorField = chartModel.colorField
+      }
+
+      if (type === 'sunburst') {
         config.dataField = chartModel.dataField
         config.valueField = chartModel.valueField
         config.colorField = chartModel.colorField
@@ -1164,15 +1172,31 @@ function convertToEchartsOption(config, data = []) {
   }
 
   if (type === 'treemap') {
-    const dataField = config.dataField || 'name'
-    const valueField = config.valueField || 'value'
-    const colorField = config.colorField || 'category'
+    const dataField = config.dataField
+    const valueField = config.valueField
+    const colorField = config.colorField
     // 假设 data 已经是树形结构
     option = {
       title: { text: config.title || '' },
       tooltip: { show: true },
       series: [{
         type: 'treemap',
+        data: data, // 这里需要保证 data 是树形结构
+        label: { show: true, formatter: '{b}' }
+      }]
+    }
+  }
+
+  if (type === 'sunburst') {
+    const dataField = config.dataField
+    const valueField = config.valueField
+    const colorField = config.colorField
+  // 假设 data 已经是树结构
+    option = {
+      title: { text: config.title || '' },
+      tooltip: { show: true },
+      series: [{
+        type: 'sunburst',
         data: data, // 这里需要保证 data 是树形结构
         label: { show: true, formatter: '{b}' }
       }]
