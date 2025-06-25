@@ -112,6 +112,7 @@
             <el-option label="树形图" value="tree" />
             <el-option label="旭日图" value="sunburst" />
             <el-option label="箱线图" value="boxplot" />
+            <el-option label="蜡烛图" value="candlestick" />
           </el-select>
         </el-form-item>
         
@@ -134,47 +135,32 @@
           <el-input v-model="currentChart.title" />
         </el-form-item>
         
-        <el-form-item label="X字段" v-if="isXYType || is3DType || isBoxplot">
+        <el-form-item label="X字段" v-if="isXYType || is3DType || isBoxplot || isCandlestick">
           <el-input v-model="currentChart.xField" />
         </el-form-item>
         
-        <el-form-item label="Y字段" v-if="isXYType || is3DType || isBoxplot">
-          <el-input v-model="currentChart.yField" />
+        <el-form-item label="开始值字段" v-if="isCandlestick">
+          <el-input v-model="currentChart.openField" />
         </el-form-item>
         
-        <el-form-item label="Z字段" v-if="is3DType">
-          <el-input v-model="currentChart.zField" />
+        <el-form-item label="最大值字段" v-if="isCandlestick">
+          <el-input v-model="currentChart.highField" />
         </el-form-item>
         
-        <el-form-item label="颜色字段" v-if="is3DScatter || isTreemap || isSunburst">
-          <el-input v-model="currentChart.colorField" placeholder="用于区分颜色的数据列名" />
+        <el-form-item label="最小值字段" v-if="isCandlestick">
+          <el-input v-model="currentChart.lowField" />
         </el-form-item>
         
-        <el-form-item label="大小字段" v-if="is3DScatter">
-          <el-input v-model="currentChart.sizeField" placeholder="决定散点大小的数据列名" />
+        <el-form-item label="结束值字段" v-if="isCandlestick">
+          <el-input v-model="currentChart.closeField" />
         </el-form-item>
         
-        <el-form-item label="分组字段" v-if="isXYType || isRadar || isFunnel || isArea || isBoxplot">
-          <el-input v-model="currentChart.seriesField" />
+        <el-form-item label="柱状图数值字段" v-if="isCandlestick">
+          <el-input v-model="currentChart.volumeField" />
         </el-form-item>
         
-        <el-form-item label="角度字段" v-if="isPie">
-          <el-input v-model="currentChart.angleField" />
-        </el-form-item>
-        
-        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree">
-          <el-input v-model="currentChart.valueField" />
-        </el-form-item>
-        
-        <el-form-item v-if="currentChart.type === 'pie'" label="饼图类型">
-          <el-select v-model="currentChart.pieType" style="width: 100%">
-            <el-option label="圆形" value="pie" />
-            <el-option label="环形" value="doughnut" />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item label="颜色" v-if="isArea || isBoxplot">
-          <el-input v-model="currentChart.color" placeholder="如 #1890ff,#2fc25b,#facc14" />
+        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick">
+          <el-input v-model="currentChart.color" placeholder="#f5222d,#52c41a" />
         </el-form-item>
         <el-form-item label="堆叠" v-if="isXYType">
           <el-switch v-model="currentChart.stack" />
@@ -228,6 +214,18 @@
         </el-form-item>
         <el-form-item label="异常值描边色" v-if="isBoxplot">
           <el-input v-model="currentChart.outlierStroke" placeholder="#f5222d" />
+        </el-form-item>
+        <el-form-item label="蜡烛线描边色" v-if="isCandlestick">
+          <el-input v-model="currentChart.candlestickStroke" placeholder="#000000" />
+        </el-form-item>
+        <el-form-item label="蜡烛线线宽" v-if="isCandlestick">
+          <el-input-number v-model="currentChart.candlestickLineWidth" :min="1" :max="5" />
+        </el-form-item>
+        <el-form-item label="柱状图填充色" v-if="isCandlestick">
+          <el-input v-model="currentChart.volumeFill" placeholder="#1890ff" />
+        </el-form-item>
+        <el-form-item label="柱状图透明度" v-if="isCandlestick">
+          <el-input-number v-model="currentChart.volumeOpacity" :min="0" :max="1" :step="0.1" />
         </el-form-item>
       </el-form>
       
@@ -320,6 +318,15 @@ const currentChart = reactive({
   boxFill: '',
   outlierFill: '',
   outlierStroke: '',
+  openField: '',
+  highField: '',
+  lowField: '',
+  closeField: '',
+  volumeField: '',
+  candlestickStroke: '',
+  candlestickLineWidth: 1,
+  volumeFill: '',
+  volumeOpacity: 0.6,
 })
 
 const rules = {
@@ -349,6 +356,7 @@ const isTreemap = computed(() => currentChart.type === 'treemap')
 const isSunburst = computed(() => currentChart.type === 'sunburst')
 const isTree = computed(() => currentChart.type === 'tree')
 const isBoxplot = computed(() => currentChart.type === 'boxplot')
+const isCandlestick = computed(() => currentChart.type === 'candlestick')
 
 const resetForm = () => {
   nextTick(() => {
@@ -389,6 +397,15 @@ const resetForm = () => {
     boxFill: '',
     outlierFill: '',
     outlierStroke: '',
+    openField: '',
+    highField: '',
+    lowField: '',
+    closeField: '',
+    volumeField: '',
+    candlestickStroke: '',
+    candlestickLineWidth: 1,
+    volumeFill: '',
+    volumeOpacity: 0.6,
   })
 }
 
@@ -479,6 +496,15 @@ const handleEdit = chartToEdit => {
       boxFill: (config.boxStyle && config.boxStyle.fill) || config.boxFill || '',
       outlierFill: (config.outlierStyle && config.outlierStyle.fill) || config.outlierFill || '',
       outlierStroke: (config.outlierStyle && config.outlierStyle.stroke) || config.outlierStroke || '',
+      openField: config.openField || '',
+      highField: config.highField || '',
+      lowField: config.lowField || '',
+      closeField: config.closeField || '',
+      volumeField: config.volumeField || '',
+      candlestickStroke: (config.candlestickStyle && config.candlestickStyle.stroke) || '',
+      candlestickLineWidth: (config.candlestickStyle && config.candlestickStyle.lineWidth) || 1,
+      volumeFill: (config.volumeStyle && config.volumeStyle.fill) || '',
+      volumeOpacity: (config.volumeStyle && config.volumeStyle.opacity) || 0.6,
     };
 
     Object.assign(currentChart, newChartState);
@@ -590,8 +616,8 @@ const handleSave = async () => {
       }
 
       if (type === 'radar') {
-        config.valueField = chartModel.valueField
         config.seriesField = chartModel.seriesField
+        config.valueField = chartModel.valueField
         config.radius = chartModel.radius
       }
       
@@ -630,6 +656,23 @@ const handleSave = async () => {
         config.outlierStyle = {
           fill: chartModel.outlierFill,
           stroke: chartModel.outlierStroke
+        }
+      }
+      
+      if (type === 'candlestick') {
+        config.xField = chartModel.xField
+        config.openField = chartModel.openField
+        config.highField = chartModel.highField
+        config.lowField = chartModel.lowField
+        config.closeField = chartModel.closeField
+        config.volumeField = chartModel.volumeField
+        config.candlestickStyle = {
+          stroke: chartModel.candlestickStroke,
+          lineWidth: Number(chartModel.candlestickLineWidth)
+        }
+        config.volumeStyle = {
+          fill: chartModel.volumeFill,
+          opacity: Number(chartModel.volumeOpacity)
         }
       }
       
@@ -1403,6 +1446,94 @@ function convertToEchartsOption(config, data = []) {
       xAxis: { type: 'category', data: xAxisData },
       yAxis: { type: 'value' },
       series
+    }
+  }
+
+  if (type === 'candlestick') {
+    const xField = config.xField
+    const openField = config.openField
+    const highField = config.highField
+    const lowField = config.lowField
+    const closeField = config.closeField
+    const volumeField = config.volumeField
+    const colorArr = config.color || ['#f5222d', '#52c41a']
+    const xAxisData = []
+    const values = []
+    const volumes = []
+    data.forEach(d => {
+      // 检查所有字段都存在且为数字
+      const open = Number(d[openField])
+      const close = Number(d[closeField])
+      const low = Number(d[lowField])
+      const high = Number(d[highField])
+      const x = d[xField]
+      if (
+        x !== undefined &&
+        !isNaN(open) && !isNaN(close) && !isNaN(low) && !isNaN(high)
+      ) {
+        xAxisData.push(x)
+        values.push([open, close, low, high])
+        if (volumeField && d[volumeField] !== undefined && !isNaN(Number(d[volumeField]))) {
+          volumes.push(Number(d[volumeField]))
+        } else if (volumeField) {
+          volumes.push(null)
+        }
+      }
+    })
+    // K线主图和成交量分上下两图
+    const hasVolume = volumeField && volumes.length > 0
+    option = {
+      title: { text: config.title || '' },
+      tooltip: config.tooltip !== false ? { trigger: 'axis', axisPointer: { type: 'cross' } } : undefined,
+      legend: { data: ['蜡烛图', ...(hasVolume ? ['柱状图'] : [])] },
+      color: colorArr,
+      grid: hasVolume ? [
+        { left: '10%', right: '10%', top: 60, height: '50%' }, // 主图
+        { left: '10%', right: '10%', top: '68%', height: '16%' } // 副图
+      ] : { left: '10%', right: '10%', bottom: 60 },
+      xAxis: hasVolume ? [
+        { type: 'category', data: xAxisData, scale: true, boundaryGap: false, axisLine: { onZero: false }, splitLine: { show: false }, min: 'dataMin', max: 'dataMax', gridIndex: 0 },
+        { type: 'category', data: xAxisData, scale: true, boundaryGap: false, axisLine: { onZero: false }, splitLine: { show: false }, min: 'dataMin', max: 'dataMax', gridIndex: 1, show: false }
+      ] : [
+        { type: 'category', data: xAxisData, scale: true, boundaryGap: false, axisLine: { onZero: false }, splitLine: { show: false }, min: 'dataMin', max: 'dataMax' }
+      ],
+      yAxis: hasVolume ? [
+        { scale: true, splitArea: { show: true }, gridIndex: 0 },
+        { scale: true, gridIndex: 1, splitLine: { show: false }, axisLabel: { show: true } }
+      ] : [
+        { scale: true, splitArea: { show: true } }
+      ],
+      dataZoom: [
+        { type: 'inside', xAxisIndex: hasVolume ? [0, 1] : [0], start: 50, end: 100 },
+        { show: true, type: 'slider', xAxisIndex: hasVolume ? [0, 1] : [0], top: hasVolume ? '90%' : '90%', start: 50, end: 100 }
+      ],
+      series: [
+        {
+          name: '蜡烛图',
+          type: 'candlestick',
+          data: values,
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          itemStyle: {
+            color: colorArr[0],
+            color0: colorArr[1],
+            borderColor: config.candlestickStyle?.stroke || colorArr[0],
+            borderColor0: config.candlestickStyle?.stroke || colorArr[1],
+            borderWidth: config.candlestickStyle?.lineWidth || 1
+          }
+        },
+        ...(hasVolume ? [{
+          name: '柱状图',
+          type: 'bar',
+          xAxisIndex: 1,
+          yAxisIndex: 1,
+          data: volumes,
+          itemStyle: {
+            color: config.volumeStyle?.fill || '#1890ff',
+            opacity: config.volumeStyle?.opacity || 0.6
+          }
+        }] : [])
+      ]
     }
   }
 
