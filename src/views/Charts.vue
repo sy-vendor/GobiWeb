@@ -115,6 +115,7 @@
             <el-option label="蜡烛图" value="candlestick" />
             <el-option label="词云" value="wordcloud" />
             <el-option label="关系图" value="graph" />
+            <el-option label="瀑布图" value="waterfall" />
           </el-select>
         </el-form-item>
         
@@ -137,11 +138,11 @@
           <el-input v-model="currentChart.title" />
         </el-form-item>
         
-        <el-form-item label="X字段" v-if="isXYType || is3DType || isBoxplot || isCandlestick">
+        <el-form-item label="X字段" v-if="isXYType || is3DType || isBoxplot || isCandlestick || isWaterfall">
           <el-input v-model="currentChart.xField" />
         </el-form-item>
 
-        <el-form-item label="Y字段" v-if="isXYType || is3DType || isBoxplot">
+        <el-form-item label="Y字段" v-if="isXYType || is3DType || isBoxplot || isWaterfall">
           <el-input v-model="currentChart.yField" />
         </el-form-item>
 
@@ -196,7 +197,7 @@
           <el-input v-model="currentChart.volumeField" />
         </el-form-item>
         
-        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph">
+        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph || isWaterfall">
           <el-input v-model="currentChart.color" placeholder="如 #1890ff,#2fc25b,#facc14" />
         </el-form-item>
         <el-form-item label="堆叠" v-if="isXYType">
@@ -208,10 +209,10 @@
         <el-form-item label="填充透明度" v-if="isArea">
           <el-input-number v-model="currentChart.fillOpacity" :min="0" :max="1" :step="0.1" />
         </el-form-item>
-        <el-form-item label="显示图例" v-if="isArea || isGraph">
+        <el-form-item label="显示图例" v-if="isArea || isGraph || isWaterfall">
           <el-switch v-model="currentChart.legend" />
         </el-form-item>
-        <el-form-item label="显示提示框" v-if="isArea || isBoxplot || isGraph">
+        <el-form-item label="显示提示框" v-if="isArea || isBoxplot || isGraph || isWaterfall">
           <el-switch v-model="currentChart.tooltip" />
         </el-form-item>
         
@@ -355,6 +356,12 @@
         <el-form-item label="排斥力" v-if="isGraph">
           <el-input-number v-model="currentChart.repulsion" :min="0" :max="1000" :step="1" />
         </el-form-item>
+        <el-form-item label="类型字段" v-if="isWaterfall">
+          <el-input v-model="currentChart.typeField" placeholder="如 type，区分增/减/小计" />
+        </el-form-item>
+        <el-form-item label="描述字段" v-if="isWaterfall">
+          <el-input v-model="currentChart.descriptionField" placeholder="如 description，显示在tooltip" />
+        </el-form-item>
       </el-form>
       
       <template #footer>
@@ -476,6 +483,9 @@ const currentChart = reactive({
   layout: 'force',
   gravity: 0.1,
   repulsion: 200,
+  // 瀑布图专用字段
+  typeField: '',
+  descriptionField: '',
 })
 
 const rules = {
@@ -508,6 +518,7 @@ const isBoxplot = computed(() => currentChart.type === 'boxplot')
 const isCandlestick = computed(() => currentChart.type === 'candlestick')
 const isWordcloud = computed(() => currentChart.type === 'wordcloud')
 const isGraph = computed(() => currentChart.type === 'graph')
+const isWaterfall = computed(() => currentChart.type === 'waterfall')
 
 const resetForm = () => {
   nextTick(() => {
@@ -577,6 +588,9 @@ const resetForm = () => {
     layout: 'force',
     gravity: 0.1,
     repulsion: 200,
+    // 瀑布图专用字段
+    typeField: '',
+    descriptionField: '',
   })
 }
 
@@ -696,6 +710,9 @@ const handleEdit = chartToEdit => {
       layout: config.layout || 'force',
       gravity: config.gravity || 0.1,
       repulsion: config.repulsion || 200,
+      // 瀑布图专用字段
+      typeField: config.typeField || '',
+      descriptionField: config.descriptionField || '',
     };
 
     Object.assign(currentChart, newChartState);
@@ -903,6 +920,17 @@ const handleSave = async () => {
         config.repulsion = chartModel.repulsion
         config.legend = chartModel.legend
         config.tooltip = chartModel.tooltip
+      }
+      
+      if (type === 'waterfall') {
+        config.xField = chartModel.xField
+        config.yField = chartModel.yField
+        config.typeField = chartModel.typeField
+        config.descriptionField = chartModel.descriptionField
+        config.legend = chartModel.legend
+        config.color = chartModel.color ? chartModel.color.split(',').filter(c => c.trim()) : []
+        config.tooltip = chartModel.tooltip
+        config.title = chartModel.title
       }
       
       const chartData = {
@@ -1911,6 +1939,79 @@ function convertToEchartsOption(config, data = []) {
           }
         }
       }]
+    }
+  }
+
+  if (type === 'waterfall') {
+    const xField = config.xField
+    const yField = config.yField
+    const typeField = config.typeField
+    const descriptionField = config.descriptionField
+    const color = config.color || ['#1890ff', '#f5222d', '#2fc25b']
+    const legend = config.legend !== false
+    const tooltip = config.tooltip !== false
+
+    // 数据预处理
+    const xData = data.map(d => d[xField])
+    const yData = data.map(d => Number(d[yField]) || 0)
+    const typeData = data.map(d => d[typeField] || 'normal')
+    const descData = data.map(d => d[descriptionField] || '')
+
+    // 计算辅助数据（用于实现瀑布效果）
+    let sum = 0
+    const assist = yData.map((v, i) => {
+      if (typeData[i] === 'total') {
+        const tmp = sum
+        sum = 0
+        return tmp
+      }
+      const tmp = sum
+      sum += v
+      return tmp
+    })
+
+    option = {
+      title: { text: config.title || '' },
+      tooltip: tooltip ? {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: function(params) {
+          const d = params[0]
+          let html = `${d.name}<br/>`
+          html += `值: ${d.value}<br/>`
+          if (descData[d.dataIndex]) html += `描述: ${descData[d.dataIndex]}<br/>`
+          return html
+        }
+      } : undefined,
+      legend: legend ? { data: ['增减', '辅助'] } : undefined,
+      color,
+      xAxis: { type: 'category', data: xData },
+      yAxis: { type: 'value' },
+      series: [
+        {
+          name: '辅助',
+          type: 'bar',
+          stack: '总量',
+          itemStyle: { borderColor: 'transparent', color: 'transparent' },
+          emphasis: { itemStyle: { borderColor: 'transparent', color: 'transparent' } },
+          data: assist
+        },
+        {
+          name: '增减',
+          type: 'bar',
+          stack: '总量',
+          data: yData,
+          itemStyle: {
+            color: function(params) {
+              // 可根据 typeData 决定颜色
+              if (typeData[params.dataIndex] === 'increase') return color[0]
+              if (typeData[params.dataIndex] === 'decrease') return color[1]
+              if (typeData[params.dataIndex] === 'total') return color[2]
+              return color[0]
+            }
+          }
+        }
+      ]
     }
   }
 
