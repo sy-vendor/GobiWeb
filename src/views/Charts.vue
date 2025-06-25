@@ -113,6 +113,7 @@
             <el-option label="旭日图" value="sunburst" />
             <el-option label="箱线图" value="boxplot" />
             <el-option label="蜡烛图" value="candlestick" />
+            <el-option label="词云" value="wordcloud" />
           </el-select>
         </el-form-item>
         
@@ -138,6 +139,41 @@
         <el-form-item label="X字段" v-if="isXYType || is3DType || isBoxplot || isCandlestick">
           <el-input v-model="currentChart.xField" />
         </el-form-item>
+
+        <el-form-item label="Y字段" v-if="isXYType || is3DType || isBoxplot">
+          <el-input v-model="currentChart.yField" />
+        </el-form-item>
+
+        <el-form-item label="Z字段" v-if="is3DType">
+          <el-input v-model="currentChart.zField" />
+        </el-form-item>
+
+        <el-form-item label="颜色字段" v-if="is3DScatter || isTreemap || isSunburst || isWordcloud">
+          <el-input v-model="currentChart.colorField" placeholder="用于区分颜色的数据列名" />
+        </el-form-item>
+
+        <el-form-item label="大小字段" v-if="is3DScatter">
+          <el-input v-model="currentChart.sizeField" placeholder="决定散点大小的数据列名" />
+        </el-form-item>
+
+        <el-form-item label="分组字段" v-if="isXYType || isRadar || isFunnel || isArea || isBoxplot">
+          <el-input v-model="currentChart.seriesField" />
+        </el-form-item>
+
+        <el-form-item label="角度字段" v-if="isPie">
+          <el-input v-model="currentChart.angleField" />
+        </el-form-item>
+
+        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree">
+          <el-input v-model="currentChart.valueField" />
+        </el-form-item>
+
+        <el-form-item v-if="currentChart.type === 'pie'" label="饼图类型">
+          <el-select v-model="currentChart.pieType" style="width: 100%">
+            <el-option label="圆形" value="pie" />
+            <el-option label="环形" value="doughnut" />
+          </el-select>
+        </el-form-item>
         
         <el-form-item label="开始值字段" v-if="isCandlestick">
           <el-input v-model="currentChart.openField" />
@@ -159,8 +195,8 @@
           <el-input v-model="currentChart.volumeField" />
         </el-form-item>
         
-        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick">
-          <el-input v-model="currentChart.color" placeholder="#f5222d,#52c41a" />
+        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType">
+          <el-input v-model="currentChart.color" placeholder="如 #1890ff,#2fc25b,#facc14" />
         </el-form-item>
         <el-form-item label="堆叠" v-if="isXYType">
           <el-switch v-model="currentChart.stack" />
@@ -227,6 +263,38 @@
         <el-form-item label="柱状图透明度" v-if="isCandlestick">
           <el-input-number v-model="currentChart.volumeOpacity" :min="0" :max="1" :step="0.1" />
         </el-form-item>
+        <el-form-item label="词字段" v-if="isWordcloud">
+          <el-input v-model="currentChart.wordField" />
+        </el-form-item>
+        <el-form-item label="权重字段" v-if="isWordcloud">
+          <el-input v-model="currentChart.weightField" />
+        </el-form-item>
+        <el-form-item label="字体大小范围" v-if="isWordcloud">
+          <el-input v-model="currentChart.fontSize" placeholder="如 12,60" />
+        </el-form-item>
+        <el-form-item label="旋转角度范围" v-if="isWordcloud">
+          <el-input v-model="currentChart.rotation" placeholder="如 -90,90" />
+        </el-form-item>
+        <el-form-item label="螺旋类型" v-if="isWordcloud">
+          <el-select v-model="currentChart.spiral" style="width: 100%">
+            <el-option label="archimedean" value="archimedean" />
+            <el-option label="rectangular" value="rectangular" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="形状" v-if="isWordcloud">
+          <el-select v-model="currentChart.shape" style="width: 100%">
+            <el-option label="circle" value="circle" />
+            <el-option label="cardioid" value="cardioid" />
+            <el-option label="diamond" value="diamond" />
+            <el-option label="triangle-forward" value="triangle-forward" />
+            <el-option label="triangle" value="triangle" />
+            <el-option label="pentagon" value="pentagon" />
+            <el-option label="star" value="star" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="子标题" v-if="isWordcloud">
+          <el-input v-model="currentChart.subtitle" />
+        </el-form-item>
       </el-form>
       
       <template #footer>
@@ -272,6 +340,7 @@ import axios from 'axios'
 import { lo } from 'element-plus/es/locales.mjs'
 import * as echarts from 'echarts'
 import 'echarts-gl'
+import 'echarts-wordcloud'
 import { Download, Printer } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 
@@ -327,6 +396,13 @@ const currentChart = reactive({
   candlestickLineWidth: 1,
   volumeFill: '',
   volumeOpacity: 0.6,
+  wordField: '',
+  weightField: '',
+  fontSize: '',
+  rotation: '',
+  spiral: 'archimedean',
+  shape: 'circle',
+  subtitle: '',
 })
 
 const rules = {
@@ -357,6 +433,7 @@ const isSunburst = computed(() => currentChart.type === 'sunburst')
 const isTree = computed(() => currentChart.type === 'tree')
 const isBoxplot = computed(() => currentChart.type === 'boxplot')
 const isCandlestick = computed(() => currentChart.type === 'candlestick')
+const isWordcloud = computed(() => currentChart.type === 'wordcloud')
 
 const resetForm = () => {
   nextTick(() => {
@@ -406,6 +483,13 @@ const resetForm = () => {
     candlestickLineWidth: 1,
     volumeFill: '',
     volumeOpacity: 0.6,
+    wordField: '',
+    weightField: '',
+    fontSize: '',
+    rotation: '',
+    spiral: 'archimedean',
+    shape: 'circle',
+    subtitle: '',
   })
 }
 
@@ -505,6 +589,13 @@ const handleEdit = chartToEdit => {
       candlestickLineWidth: (config.candlestickStyle && config.candlestickStyle.lineWidth) || 1,
       volumeFill: (config.volumeStyle && config.volumeStyle.fill) || '',
       volumeOpacity: (config.volumeStyle && config.volumeStyle.opacity) || 0.6,
+      wordField: config.wordField || '',
+      weightField: config.weightField || '',
+      fontSize: Array.isArray(config.fontSize) ? config.fontSize.join(',') : (config.fontSize || ''),
+      rotation: Array.isArray(config.rotation) ? config.rotation.join(',') : (config.rotation || ''),
+      spiral: config.spiral || 'archimedean',
+      shape: config.shape || 'circle',
+      subtitle: config.subtitle || '',
     };
 
     Object.assign(currentChart, newChartState);
@@ -674,6 +765,17 @@ const handleSave = async () => {
           fill: chartModel.volumeFill,
           opacity: Number(chartModel.volumeOpacity)
         }
+      }
+      
+      if (type === 'wordcloud') {
+        config.wordField = chartModel.wordField
+        config.weightField = chartModel.weightField
+        config.colorField = chartModel.colorField || ''
+        config.fontSize = chartModel.fontSize ? chartModel.fontSize.split(',').map(s => Number(s.trim())) : [12, 60]
+        config.rotation = chartModel.rotation ? chartModel.rotation.split(',').map(s => Number(s.trim())) : [-90, 90]
+        config.spiral = chartModel.spiral || 'archimedean'
+        config.shape = chartModel.shape || 'circle'
+        config.subtitle = chartModel.subtitle || ''
       }
       
       const chartData = {
@@ -1534,6 +1636,86 @@ function convertToEchartsOption(config, data = []) {
           }
         }] : [])
       ]
+    }
+  }
+
+  if (type === 'wordcloud') {
+    const wordField = config.wordField
+    const weightField = config.weightField
+    const colorField = config.colorField || ''
+    const fontSize = config.fontSize || [12, 60]
+    const rotation = config.rotation || [-90, 90]
+    const spiral = config.spiral || 'archimedean'
+    const shape = config.shape || 'circle'
+    const subtitle = config.subtitle || ''
+    const colorArr = config.color || ['#1890ff', '#2fc25b', '#facc14', '#f5222d', '#722ed1']
+    let wcData = []
+    if (colorField) {
+      const categories = [...new Set(data.map(d => d[colorField]))]
+      const categoryColorMap = {}
+      categories.forEach((cat, idx) => {
+        categoryColorMap[cat] = colorArr[idx % colorArr.length]
+      })
+      wcData = data.map(d => ({
+        name: d[wordField],
+        value: Number(d[weightField]),
+        category: d[colorField]
+      })).filter(d => d.name && !isNaN(d.value))
+      option = {
+        title: {
+          text: config.title || '',
+          subtext: config.subtitle || '',
+          left: 'center'
+        },
+        tooltip: config.tooltip !== false ? {} : undefined,
+        legend: config.legend ? { show: true } : undefined,
+        series: [{
+          type: 'wordCloud',
+          shape,
+          spiral,
+          left: 'center',
+          top: 'center',
+          width: '90%',
+          height: '90%',
+          sizeRange: fontSize,
+          rotationRange: rotation,
+          textStyle: {
+            color: function(params) {
+              return categoryColorMap[params.data.category] || colorArr[0]
+            }
+          },
+          data: wcData
+        }]
+      }
+    } else {
+      wcData = data.map(d => ({
+        name: d[wordField],
+        value: Number(d[weightField])
+      })).filter(d => d.name && !isNaN(d.value))
+      option = {
+        title: {
+          text: config.title || '',
+          subtext: config.subtitle || '',
+          left: 'center'
+        },
+        tooltip: config.tooltip !== false ? {} : undefined,
+        legend: config.legend ? { show: true } : undefined,
+        series: [{
+          type: 'wordCloud',
+          shape,
+          spiral,
+          left: 'center',
+          top: 'center',
+          width: '90%',
+          height: '90%',
+          sizeRange: fontSize,
+          rotationRange: rotation,
+          textStyle: {
+            color: colorArr
+          },
+          data: wcData
+        }]
+      }
     }
   }
 
