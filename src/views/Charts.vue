@@ -114,6 +114,7 @@
             <el-option label="箱线图" value="boxplot" />
             <el-option label="蜡烛图" value="candlestick" />
             <el-option label="词云" value="wordcloud" />
+            <el-option label="关系图" value="graph" />
           </el-select>
         </el-form-item>
         
@@ -164,7 +165,7 @@
           <el-input v-model="currentChart.angleField" />
         </el-form-item>
 
-        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree">
+        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree || isGraph">
           <el-input v-model="currentChart.valueField" />
         </el-form-item>
 
@@ -195,7 +196,7 @@
           <el-input v-model="currentChart.volumeField" />
         </el-form-item>
         
-        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType">
+        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph">
           <el-input v-model="currentChart.color" placeholder="如 #1890ff,#2fc25b,#facc14" />
         </el-form-item>
         <el-form-item label="堆叠" v-if="isXYType">
@@ -207,10 +208,10 @@
         <el-form-item label="填充透明度" v-if="isArea">
           <el-input-number v-model="currentChart.fillOpacity" :min="0" :max="1" :step="0.1" />
         </el-form-item>
-        <el-form-item label="显示图例" v-if="isArea">
+        <el-form-item label="显示图例" v-if="isArea || isGraph">
           <el-switch v-model="currentChart.legend" />
         </el-form-item>
-        <el-form-item label="显示提示框" v-if="isArea || isBoxplot">
+        <el-form-item label="显示提示框" v-if="isArea || isBoxplot || isGraph">
           <el-switch v-model="currentChart.tooltip" />
         </el-form-item>
         
@@ -266,7 +267,7 @@
         <el-form-item label="词字段" v-if="isWordcloud">
           <el-input v-model="currentChart.wordField" />
         </el-form-item>
-        <el-form-item label="权重字段" v-if="isWordcloud">
+        <el-form-item label="权重字段" v-if="isWordcloud || isGraph">
           <el-input v-model="currentChart.weightField" />
         </el-form-item>
         <el-form-item label="字体大小范围" v-if="isWordcloud">
@@ -294,6 +295,65 @@
         </el-form-item>
         <el-form-item label="子标题" v-if="isWordcloud">
           <el-input v-model="currentChart.subtitle" />
+        </el-form-item>
+        <!-- 关系图专用表单项 -->
+        <el-form-item label="节点查询ID" prop="nodesQueryId" v-if="isGraph">
+          <el-select
+            v-model="currentChart.nodesQueryId"
+            style="width: 100%"
+            filterable
+          >
+            <el-option
+              v-for="item in queries"
+              :key="item.ID"
+              :label="item.Name"
+              :value="item.ID"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="边查询ID" prop="edgesQueryId" v-if="isGraph">
+          <el-select
+            v-model="currentChart.edgesQueryId"
+            style="width: 100%"
+            filterable
+          >
+            <el-option
+              v-for="item in queries"
+              :key="item.ID"
+              :label="item.Name"
+              :value="item.ID"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="源字段" v-if="isGraph">
+          <el-input v-model="currentChart.sourceField" />
+        </el-form-item>
+        <el-form-item label="目标字段" v-if="isGraph">
+          <el-input v-model="currentChart.targetField" />
+        </el-form-item>
+        <el-form-item label="节点ID字段" v-if="isGraph">
+          <el-input v-model="currentChart.nodeIdField" />
+        </el-form-item>
+        <el-form-item label="节点名称字段" v-if="isGraph">
+          <el-input v-model="currentChart.nodeNameField" />
+        </el-form-item>
+        <el-form-item label="分组字段" v-if="isGraph">
+          <el-input v-model="currentChart.groupField" />
+        </el-form-item>
+        <el-form-item label="关系字段" v-if="isGraph">
+          <el-input v-model="currentChart.relationField" />
+        </el-form-item>
+        <el-form-item label="布局" v-if="isGraph">
+          <el-select v-model="currentChart.layout">
+            <el-option label="力导向" value="force" />
+            <el-option label="环形" value="circular" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="引力" v-if="isGraph">
+          <el-input-number v-model="currentChart.gravity" :min="0" :max="1" :step="0.01" />
+        </el-form-item>
+        <el-form-item label="排斥力" v-if="isGraph">
+          <el-input-number v-model="currentChart.repulsion" :min="0" :max="1000" :step="1" />
         </el-form-item>
       </el-form>
       
@@ -403,6 +463,19 @@ const currentChart = reactive({
   spiral: 'archimedean',
   shape: 'circle',
   subtitle: '',
+  // 关系图专用字段
+  nodesQueryId: '',
+  edgesQueryId: '',
+  sourceField: '',
+  targetField: '',
+  nodeIdField: '',
+  nodeNameField: '',
+  groupField: '',
+  relationField: '',
+  weightField: '',
+  layout: 'force',
+  gravity: 0.1,
+  repulsion: 200,
 })
 
 const rules = {
@@ -434,6 +507,7 @@ const isTree = computed(() => currentChart.type === 'tree')
 const isBoxplot = computed(() => currentChart.type === 'boxplot')
 const isCandlestick = computed(() => currentChart.type === 'candlestick')
 const isWordcloud = computed(() => currentChart.type === 'wordcloud')
+const isGraph = computed(() => currentChart.type === 'graph')
 
 const resetForm = () => {
   nextTick(() => {
@@ -490,6 +564,19 @@ const resetForm = () => {
     spiral: 'archimedean',
     shape: 'circle',
     subtitle: '',
+    // 关系图专用字段
+    nodesQueryId: '',
+    edgesQueryId: '',
+    sourceField: '',
+    targetField: '',
+    nodeIdField: '',
+    nodeNameField: '',
+    groupField: '',
+    relationField: '',
+    weightField: '',
+    layout: 'force',
+    gravity: 0.1,
+    repulsion: 200,
   })
 }
 
@@ -596,6 +683,19 @@ const handleEdit = chartToEdit => {
       spiral: config.spiral || 'archimedean',
       shape: config.shape || 'circle',
       subtitle: config.subtitle || '',
+      // 关系图专用字段
+      nodesQueryId: config.nodesQueryId || '',
+      edgesQueryId: config.edgesQueryId || '',
+      sourceField: config.sourceField || '',
+      targetField: config.targetField || '',
+      nodeIdField: config.nodeIdField || '',
+      nodeNameField: config.nodeNameField || '',
+      groupField: config.groupField || '',
+      relationField: config.relationField || '',
+      weightField: config.weightField || '',
+      layout: config.layout || 'force',
+      gravity: config.gravity || 0.1,
+      repulsion: config.repulsion || 200,
     };
 
     Object.assign(currentChart, newChartState);
@@ -644,6 +744,14 @@ const handlePreview = (chart) => {
     try {
       const config = JSON.parse(previewChart.config || '{}')
       config.type = previewChart.type
+      if (config.type === 'graph') {
+        let nodes = await getQueryData(config.nodesQueryId)
+        let edges = await getQueryData(config.edgesQueryId)
+        if (nodes && !Array.isArray(nodes) && Array.isArray(nodes.data)) nodes = nodes.data
+        if (edges && !Array.isArray(edges) && Array.isArray(edges.data)) edges = edges.data
+        config.nodes = Array.isArray(nodes) ? nodes : []
+        config.edges = Array.isArray(edges) ? edges : []
+      }
       const rawData = await getQueryData(previewChart.queryID)
       const data = Array.isArray(rawData) ? rawData : (rawData.data || [])
       const option = convertToEchartsOption(config, data)
@@ -778,6 +886,25 @@ const handleSave = async () => {
         config.subtitle = chartModel.subtitle || ''
       }
       
+      if (type === 'graph') {
+        config.nodesQueryId = chartModel.nodesQueryId
+        config.edgesQueryId = chartModel.edgesQueryId
+        config.sourceField = chartModel.sourceField
+        config.targetField = chartModel.targetField
+        config.nodeIdField = chartModel.nodeIdField
+        config.nodeNameField = chartModel.nodeNameField
+        config.groupField = chartModel.groupField
+        config.relationField = chartModel.relationField
+        config.weightField = chartModel.weightField
+        config.valueField = chartModel.valueField
+        config.color = chartModel.color ? chartModel.color.split(',').filter(c => c.trim()) : []
+        config.layout = chartModel.layout || 'force'
+        config.gravity = chartModel.gravity
+        config.repulsion = chartModel.repulsion
+        config.legend = chartModel.legend
+        config.tooltip = chartModel.tooltip
+      }
+      
       const chartData = {
         name: chartModel.name,
         description: chartModel.description,
@@ -895,6 +1022,24 @@ function buildConfig(form, type) {
         distance: 200
       }
     }
+  }
+  if (type === 'graph') {
+    config.nodesQueryId = form.nodesQueryId
+    config.edgesQueryId = form.edgesQueryId
+    config.sourceField = form.sourceField
+    config.targetField = form.targetField
+    config.nodeIdField = form.nodeIdField
+    config.nodeNameField = form.nodeNameField
+    config.groupField = form.groupField
+    config.relationField = form.relationField
+    config.weightField = form.weightField
+    config.valueField = form.valueField
+    config.color = form.color ? form.color.split(',').map(s => s.trim()) : []
+    config.layout = form.layout || 'force'
+    config.gravity = form.gravity
+    config.repulsion = form.repulsion
+    config.legend = form.legend
+    config.tooltip = form.tooltip
   }
   return config
 }
@@ -1716,6 +1861,56 @@ function convertToEchartsOption(config, data = []) {
           data: wcData
         }]
       }
+    }
+  }
+
+  if (type === 'graph') {
+    const nodes = Array.isArray(config.nodes) ? config.nodes : []
+    const edges = Array.isArray(config.edges) ? config.edges : []
+    const categories = [...new Set(nodes.map(n => n[config.groupField]))].map((g, i) => ({
+      name: g,
+      itemStyle: { color: (config.color && config.color[i % config.color.length]) || undefined }
+    }))
+    // 优先weightField，没有则用valueField
+    const nodeValueField = config.weightField || config.valueField
+    option = {
+      title: { text: config.title || '' },
+      tooltip: config.tooltip !== false ? {} : undefined,
+      legend: config.legend ? { data: categories.map(c => c.name) } : undefined,
+      series: [{
+        type: 'graph',
+        layout: config.layout || 'force',
+        data: nodes.map(n => ({
+          id: n[config.nodeIdField],
+          name: n[config.nodeNameField],
+          category: n[config.groupField],
+          value: n[nodeValueField],
+          symbolSize: 40,
+          itemStyle: { color: categories.find(c => c.name === n[config.groupField])?.itemStyle.color }
+        })),
+        links: edges.map(e => ({
+          source: e[config.sourceField],
+          target: e[config.targetField],
+          value: e[config.weightField],
+          lineStyle: { width: 2 }
+        })),
+        categories,
+        force: {
+          repulsion: config.repulsion || 200,
+          gravity: config.gravity || 0.1
+        },
+        roam: true,
+        label: { show: true },
+        tooltip: {
+          formatter: function(params) {
+            let html = `<b>${params.data.name}</b>`;
+            if (params.data.value !== undefined) html += `<br/>值: ${params.data.value}`;
+            if (params.data.category !== undefined) html += `<br/>分组: ${params.data.category}`;
+            // 可根据需要补充更多字段
+            return html;
+          }
+        }
+      }]
     }
   }
 
