@@ -111,6 +111,7 @@
             <el-option label="矩形树状图" value="treemap" />
             <el-option label="树形图" value="tree" />
             <el-option label="旭日图" value="sunburst" />
+            <el-option label="箱线图" value="boxplot" />
           </el-select>
         </el-form-item>
         
@@ -133,11 +134,11 @@
           <el-input v-model="currentChart.title" />
         </el-form-item>
         
-        <el-form-item label="X字段" v-if="isXYType || is3DType">
+        <el-form-item label="X字段" v-if="isXYType || is3DType || isBoxplot">
           <el-input v-model="currentChart.xField" />
         </el-form-item>
         
-        <el-form-item label="Y字段" v-if="isXYType || is3DType">
+        <el-form-item label="Y字段" v-if="isXYType || is3DType || isBoxplot">
           <el-input v-model="currentChart.yField" />
         </el-form-item>
         
@@ -153,7 +154,7 @@
           <el-input v-model="currentChart.sizeField" placeholder="决定散点大小的数据列名" />
         </el-form-item>
         
-        <el-form-item label="分组字段" v-if="isXYType || isRadar || isFunnel || isArea">
+        <el-form-item label="分组字段" v-if="isXYType || isRadar || isFunnel || isArea || isBoxplot">
           <el-input v-model="currentChart.seriesField" />
         </el-form-item>
         
@@ -172,7 +173,7 @@
           </el-select>
         </el-form-item>
         
-        <el-form-item label="颜色" v-if="isArea">
+        <el-form-item label="颜色" v-if="isArea || isBoxplot">
           <el-input v-model="currentChart.color" placeholder="如 #1890ff,#2fc25b,#facc14" />
         </el-form-item>
         <el-form-item label="堆叠" v-if="isXYType">
@@ -187,7 +188,7 @@
         <el-form-item label="显示图例" v-if="isArea">
           <el-switch v-model="currentChart.legend" />
         </el-form-item>
-        <el-form-item label="显示提示框" v-if="isArea">
+        <el-form-item label="显示提示框" v-if="isArea || isBoxplot">
           <el-switch v-model="currentChart.tooltip" />
         </el-form-item>
         
@@ -215,6 +216,18 @@
         </el-form-item>
         <el-form-item label="名称字段" v-if="isTree">
           <el-input v-model="currentChart.nameField" placeholder="如 name" />
+        </el-form-item>
+        <el-form-item label="箱体描边色" v-if="isBoxplot">
+          <el-input v-model="currentChart.boxStroke" placeholder="#545454" />
+        </el-form-item>
+        <el-form-item label="箱体填充色" v-if="isBoxplot">
+          <el-input v-model="currentChart.boxFill" placeholder="#f6f6f6" />
+        </el-form-item>
+        <el-form-item label="异常值填充色" v-if="isBoxplot">
+          <el-input v-model="currentChart.outlierFill" placeholder="#f5222d" />
+        </el-form-item>
+        <el-form-item label="异常值描边色" v-if="isBoxplot">
+          <el-input v-model="currentChart.outlierStroke" placeholder="#f5222d" />
         </el-form-item>
       </el-form>
       
@@ -303,6 +316,10 @@ const currentChart = reactive({
   idField: '',
   parentField: '',
   nameField: '',
+  boxStroke: '',
+  boxFill: '',
+  outlierFill: '',
+  outlierStroke: '',
 })
 
 const rules = {
@@ -331,6 +348,7 @@ const isArea = computed(() => currentChart.type === 'area')
 const isTreemap = computed(() => currentChart.type === 'treemap')
 const isSunburst = computed(() => currentChart.type === 'sunburst')
 const isTree = computed(() => currentChart.type === 'tree')
+const isBoxplot = computed(() => currentChart.type === 'boxplot')
 
 const resetForm = () => {
   nextTick(() => {
@@ -367,6 +385,10 @@ const resetForm = () => {
     idField: '',
     parentField: '',
     nameField: '',
+    boxStroke: '',
+    boxFill: '',
+    outlierFill: '',
+    outlierStroke: '',
   })
 }
 
@@ -453,6 +475,10 @@ const handleEdit = chartToEdit => {
       idField: config.idField || '',
       parentField: config.parentField || '',
       nameField: config.nameField || '',
+      boxStroke: (config.boxStyle && config.boxStyle.stroke) || config.boxStroke || '',
+      boxFill: (config.boxStyle && config.boxStyle.fill) || config.boxFill || '',
+      outlierFill: (config.outlierStyle && config.outlierStyle.fill) || config.outlierFill || '',
+      outlierStroke: (config.outlierStyle && config.outlierStyle.stroke) || config.outlierStroke || '',
     };
 
     Object.assign(currentChart, newChartState);
@@ -591,6 +617,20 @@ const handleSave = async () => {
         config.parentField = chartModel.parentField
         config.nameField = chartModel.nameField
         config.valueField = chartModel.valueField
+      }
+      
+      if (type === 'boxplot') {
+        config.xField = chartModel.xField
+        config.yField = chartModel.yField
+        config.seriesField = chartModel.seriesField
+        config.boxStyle = {
+          stroke: chartModel.boxStroke,
+          fill: chartModel.boxFill
+        }
+        config.outlierStyle = {
+          fill: chartModel.outlierFill,
+          stroke: chartModel.outlierStroke
+        }
       }
       
       const chartData = {
@@ -1272,6 +1312,97 @@ function convertToEchartsOption(config, data = []) {
         animationDuration: 550,
         animationDurationUpdate: 750
       }]
+    }
+  }
+
+  if (type === 'boxplot') {
+    // 箱线图数据转换
+    const xField = config.xField
+    const yField = config.yField
+    const seriesField = config.seriesField
+    const tooltip = config.tooltip !== false;
+    const color = config.color || ['#1890ff', '#2fc25b', '#facc14', '#f5222d']
+    // 分组
+    const groups = seriesField ? [...new Set(data.map(d => d[seriesField]))] : ['']
+    const xAxisData = [...new Set(data.map(d => d[xField]))]
+    // 计算每组每x的五数分位
+    function getBoxData(arr, yField) {
+      const values = arr.map(d => Number(d[yField])).filter(v => !isNaN(v)).sort((a, b) => a - b)
+      if (!values.length) return [0, 0, 0, 0, 0]
+      const q1 = quantile(values, 0.25)
+      const q2 = quantile(values, 0.5)
+      const q3 = quantile(values, 0.75)
+      const min = values[0]
+      const max = values[values.length - 1]
+      return [min, q1, q2, q3, max]
+    }
+    function quantile(arr, q) {
+      const pos = (arr.length - 1) * q
+      const base = Math.floor(pos)
+      const rest = pos - base
+      if (arr[base + 1] !== undefined) {
+        return arr[base] + rest * (arr[base + 1] - arr[base])
+      } else {
+        return arr[base]
+      }
+    }
+    const boxStyle = config.boxStyle || {}
+    const outlierStyle = config.outlierStyle || {}
+    const legendRich = {}
+    color.forEach((c, i) => {
+      legendRich[`color${i}`] = {
+        color: c,
+        fontSize: 22,
+        fontWeight: 'bold',
+        fontFamily: 'monospace',
+        padding: [0, 4, 0, 0]
+      }
+    })
+    const series = groups.map((group, idx) => {
+      const boxData = xAxisData.map(x => {
+        const arr = data.filter(d => d[xField] === x && (seriesField ? d[seriesField] === group : true))
+        return getBoxData(arr, yField)
+      })
+      return {
+        name: group,
+        type: 'boxplot',
+        data: boxData,
+        itemStyle: {
+          color: color[idx % color.length],
+          borderColor: boxStyle.stroke || '#545454',
+          borderWidth: 1,
+        },
+        boxWidth: [15, 30],
+        emphasis: {
+          itemStyle: {
+            borderColor: boxStyle.stroke || '#545454',
+            color: boxStyle.fill || '#f6f6f6',
+          }
+        },
+        outlierStyle: {
+          color: outlierStyle.fill || '#f5222d',
+          borderColor: outlierStyle.stroke || '#f5222d'
+        }
+      }
+    })
+    option = {
+      title: { text: config.title || '' },
+      tooltip: config.tooltip !== false ? { trigger: 'item', axisPointer: { type: 'shadow' } } : undefined,
+      legend: {
+        data: groups.filter(g => g),
+        icon: 'none',
+        formatter: function(name) {
+          const idx = groups.indexOf(name)
+          return `{color${idx}|■} ` + name
+        },
+        textStyle: {
+          rich: legendRich
+        }
+      },
+      color,
+      xAxis: { type: 'category', data: xAxisData },
+      yAxis: { type: 'value' },
+      series
     }
   }
 
