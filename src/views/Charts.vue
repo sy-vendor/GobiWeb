@@ -116,6 +116,7 @@
             <el-option label="词云" value="wordcloud" />
             <el-option label="关系图" value="graph" />
             <el-option label="瀑布图" value="waterfall" />
+            <el-option label="极坐标图" value="polar" />
           </el-select>
         </el-form-item>
         
@@ -158,15 +159,15 @@
           <el-input v-model="currentChart.sizeField" placeholder="决定散点大小的数据列名" />
         </el-form-item>
 
-        <el-form-item label="分组字段" v-if="isXYType || isRadar || isFunnel || isArea || isBoxplot">
+        <el-form-item label="分组字段" v-if="isXYType || isRadar || isFunnel || isArea || isBoxplot || isPolar">
           <el-input v-model="currentChart.seriesField" />
         </el-form-item>
 
-        <el-form-item label="角度字段" v-if="isPie">
+        <el-form-item label="角度字段" v-if="isPie || isPolar">
           <el-input v-model="currentChart.angleField" />
         </el-form-item>
 
-        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree || isGraph">
+        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree || isGraph || isPolar">
           <el-input v-model="currentChart.valueField" />
         </el-form-item>
 
@@ -197,7 +198,7 @@
           <el-input v-model="currentChart.volumeField" />
         </el-form-item>
         
-        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph || isWaterfall">
+        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph || isWaterfall || isPolar">
           <el-input v-model="currentChart.color" placeholder="如 #1890ff,#2fc25b,#facc14" />
         </el-form-item>
         <el-form-item label="堆叠" v-if="isXYType">
@@ -212,7 +213,7 @@
         <el-form-item label="显示图例" v-if="isArea || isGraph || isWaterfall">
           <el-switch v-model="currentChart.legend" />
         </el-form-item>
-        <el-form-item label="显示提示框" v-if="isArea || isBoxplot || isGraph || isWaterfall">
+        <el-form-item label="显示提示框" v-if="isArea || isBoxplot || isGraph || isWaterfall || isPolar">
           <el-switch v-model="currentChart.tooltip" />
         </el-form-item>
         
@@ -359,7 +360,7 @@
         <el-form-item label="类型字段" v-if="isWaterfall">
           <el-input v-model="currentChart.typeField" placeholder="如 type，区分增/减/小计" />
         </el-form-item>
-        <el-form-item label="描述字段" v-if="isWaterfall">
+        <el-form-item label="描述字段" v-if="isWaterfall || isPolar">
           <el-input v-model="currentChart.descriptionField" placeholder="如 description，显示在tooltip" />
         </el-form-item>
       </el-form>
@@ -486,6 +487,10 @@ const currentChart = reactive({
   // 瀑布图专用字段
   typeField: '',
   descriptionField: '',
+  // 极坐标图专用字段
+  angleField: '',
+  seriesField: '',
+  descriptionField: '',
 })
 
 const rules = {
@@ -519,6 +524,7 @@ const isCandlestick = computed(() => currentChart.type === 'candlestick')
 const isWordcloud = computed(() => currentChart.type === 'wordcloud')
 const isGraph = computed(() => currentChart.type === 'graph')
 const isWaterfall = computed(() => currentChart.type === 'waterfall')
+const isPolar = computed(() => currentChart.type === 'polar')
 
 const resetForm = () => {
   nextTick(() => {
@@ -590,6 +596,10 @@ const resetForm = () => {
     repulsion: 200,
     // 瀑布图专用字段
     typeField: '',
+    descriptionField: '',
+    // 极坐标图专用字段
+    angleField: '',
+    seriesField: '',
     descriptionField: '',
   })
 }
@@ -712,6 +722,10 @@ const handleEdit = chartToEdit => {
       repulsion: config.repulsion || 200,
       // 瀑布图专用字段
       typeField: config.typeField || '',
+      descriptionField: config.descriptionField || '',
+      // 极坐标图专用字段
+      angleField: config.angleField || '',
+      seriesField: config.seriesField || '',
       descriptionField: config.descriptionField || '',
     };
 
@@ -926,6 +940,17 @@ const handleSave = async () => {
         config.xField = chartModel.xField
         config.yField = chartModel.yField
         config.typeField = chartModel.typeField
+        config.descriptionField = chartModel.descriptionField
+        config.legend = chartModel.legend
+        config.color = chartModel.color ? chartModel.color.split(',').filter(c => c.trim()) : []
+        config.tooltip = chartModel.tooltip
+        config.title = chartModel.title
+      }
+      
+      if (type === 'polar') {
+        config.angleField = chartModel.angleField
+        config.valueField = chartModel.valueField
+        config.seriesField = chartModel.seriesField
         config.descriptionField = chartModel.descriptionField
         config.legend = chartModel.legend
         config.color = chartModel.color ? chartModel.color.split(',').filter(c => c.trim()) : []
@@ -2012,6 +2037,50 @@ function convertToEchartsOption(config, data = []) {
           }
         }
       ]
+    }
+  }
+
+  if (type === 'polar') {
+    const angleField = config.angleField
+    const valueField = config.valueField
+    const seriesField = config.seriesField
+    const descriptionField = config.descriptionField
+    const color = config.color || ['#1890ff', '#f5222d', '#2fc25b']
+    const legend = config.legend !== false
+    const tooltip = config.tooltip !== false
+
+    // 数据分组
+    const groups = [...new Set(data.map(d => d[seriesField]))]
+    const angleData = [...new Set(data.map(d => d[angleField]))]
+    const descData = data.map(d => d[descriptionField] || '')
+
+    const series = groups.map((group, idx) => ({
+      type: 'bar',
+      coordinateSystem: 'polar',
+      name: group,
+      data: angleData.map(a => {
+        const found = data.find(d => d[angleField] === a && d[seriesField] === group)
+        return found ? Number(found[valueField]) : 0
+      }),
+      itemStyle: { color: color[idx % color.length] }
+    }))
+
+    option = {
+      title: { text: config.title || '' },
+      legend: legend ? { data: groups } : undefined,
+      color,
+      polar: {},
+      tooltip: tooltip ? {
+        trigger: 'item',
+        formatter: function(params) {
+          let html = `${params.seriesName || ''} ${params.name || ''}<br/>值: ${params.value}`
+          if (descData[params.dataIndex]) html += `<br/>描述: ${descData[params.dataIndex]}`
+          return html
+        }
+      } : undefined,
+      angleAxis: { type: 'category', data: angleData },
+      radiusAxis: {},
+      series
     }
   }
 
