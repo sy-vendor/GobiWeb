@@ -122,6 +122,8 @@
             <el-option label="分级着色图" value="choropleth" />
             <el-option label="地图" value="map" />
             <el-option label="地理图" value="geo" />
+            <el-option label="进度条" value="progress" />
+            <el-option label="环形进度图" value="circular-progress" />
           </el-select>
         </el-form-item>
         
@@ -156,7 +158,7 @@
           <el-input v-model="currentChart.zField" />
         </el-form-item>
 
-        <el-form-item label="颜色字段" v-if="is3DScatter || isTreemap || isSunburst || isWordcloud || isRose">
+        <el-form-item label="颜色字段" v-if="is3DScatter || isTreemap || isSunburst || isWordcloud || isRose || isProgress || isCircularProgress">
           <el-input v-model="currentChart.colorField" placeholder="用于区分颜色的数据列名" />
         </el-form-item>
 
@@ -172,7 +174,7 @@
           <el-input v-model="currentChart.angleField" />
         </el-form-item>
 
-        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree || isGraph || isPolar || isRose || isChoropleth || isMap || isGeo">
+        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree || isGraph || isPolar || isRose || isChoropleth || isMap || isGeo || isProgress || isCircularProgress">
           <el-input v-model="currentChart.valueField" />
         </el-form-item>
 
@@ -203,7 +205,7 @@
           <el-input v-model="currentChart.volumeField" />
         </el-form-item>
         
-        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph || isWaterfall || isPolar || isGantt || isRose || isChoropleth || isMap || isGeo">
+        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph || isWaterfall || isPolar || isGantt || isRose || isChoropleth || isMap || isGeo || isProgress || isCircularProgress">
           <el-input v-model="currentChart.color" placeholder="如 #1890ff,#2fc25b,#facc14" />
         </el-form-item>
         <el-form-item label="堆叠" v-if="isXYType">
@@ -218,19 +220,19 @@
         <el-form-item label="显示图例" v-if="isArea || isGraph || isWaterfall || isGantt || isRose">
           <el-switch v-model="currentChart.legend" />
         </el-form-item>
-        <el-form-item label="显示提示框" v-if="isArea || isBoxplot || isGraph || isWaterfall || isPolar || isGantt || isRose">
+        <el-form-item label="显示提示框" v-if="isArea || isBoxplot || isGraph || isWaterfall || isPolar || isGantt || isRose || isProgress || isCircularProgress">
           <el-switch v-model="currentChart.tooltip" />
         </el-form-item>
         
-        <el-form-item label="半径" v-if="isPie || isRadar">
-          <el-input v-model="currentChart.radius" placeholder="如 0.8" />
+        <el-form-item label="半径" v-if="isPie || isRose || isRadar || isCircularProgress">
+          <el-input v-model="currentChart.radius"/>
         </el-form-item>
         
         <el-form-item label="最小值" v-if="isGauge">
           <el-input v-model="currentChart.min" />
         </el-form-item>
         
-        <el-form-item label="最大值" v-if="isGauge">
+        <el-form-item label="最大值" v-if="isGauge || isProgress || isCircularProgress">
           <el-input v-model="currentChart.max" />
         </el-form-item>
         
@@ -244,7 +246,7 @@
         <el-form-item label="父ID字段" v-if="isTree">
           <el-input v-model="currentChart.parentField" placeholder="如 parent_id" />
         </el-form-item>
-        <el-form-item label="名称字段" v-if="isTree">
+        <el-form-item label="名称字段" v-if="isTree || isProgress || isCircularProgress">
           <el-input v-model="currentChart.nameField" placeholder="如 name" />
         </el-form-item>
         <el-form-item label="箱体描边色" v-if="isBoxplot">
@@ -300,7 +302,7 @@
             <el-option label="star" value="star" />
           </el-select>
         </el-form-item>
-        <el-form-item label="子标题" v-if="isWordcloud">
+        <el-form-item label="子标题" v-if="isWordcloud || isProgress || isCircularProgress">
           <el-input v-model="currentChart.subtitle" />
         </el-form-item>
         <!-- 关系图专用表单项 -->
@@ -365,7 +367,7 @@
         <el-form-item label="类型字段" v-if="isWaterfall">
           <el-input v-model="currentChart.typeField" placeholder="如 type，区分增/减/小计" />
         </el-form-item>
-        <el-form-item label="描述字段" v-if="isWaterfall || isPolar || isRose || isChoropleth || isMap || isGeo">
+        <el-form-item label="描述字段" v-if="isWaterfall || isPolar || isRose || isChoropleth || isMap || isGeo || isProgress || isCircularProgress">
           <el-input v-model="currentChart.descriptionField" placeholder="如 description，显示在tooltip" />
         </el-form-item>
         <el-form-item label="任务字段" v-if="isGantt">
@@ -399,7 +401,7 @@
           <el-input v-model="currentChart.priorityField" placeholder="如 priority" />
         </el-form-item>
         <!-- 玫瑰图专用表单项 -->
-        <el-form-item label="类别字段" v-if="isRose || isChoropleth || isMap || isGeo">
+        <el-form-item label="类别字段" v-if="isRose || isChoropleth || isMap || isGeo || isProgress || isCircularProgress">
           <el-input v-model="currentChart.categoryField" placeholder="如 category" />
         </el-form-item>
         <el-form-item label="玫瑰图类型" v-if="isRose">
@@ -407,9 +409,6 @@
             <el-option label="radius" value="radius" />
             <el-option label="area" value="area" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="玫瑰图半径" v-if="isRose">
-          <el-input v-model="currentChart.radius" placeholder="如 20%,80%" />
         </el-form-item>
         <el-form-item label="玫瑰图中心" v-if="isRose">
           <el-input v-model="currentChart.center" placeholder="如 50%,50%" />
@@ -437,6 +436,10 @@
         </el-form-item>
         <el-form-item label="散点大小" v-if="isGeo">
           <el-input v-model="currentChart.symbolSize" placeholder="如 10" />
+        </el-form-item>
+
+        <el-form-item label="是否显示标签" v-if="isProgress || isCircularProgress">
+          <el-switch v-model="currentChart.showLabel" />
         </el-form-item>
       </el-form>
       
@@ -590,6 +593,7 @@ const currentChart = reactive({
   visualMap: true,
   longitudeField: '',
   latitudeField: '',
+  showLabel: true,
 })
 
 const rules = {
@@ -629,6 +633,8 @@ const isRose = computed(() => currentChart.type === 'rose')
 const isChoropleth = computed(() => currentChart.type === 'choropleth')
 const isMap = computed(() => currentChart.type === 'map')
 const isGeo = computed(() => currentChart.type === 'geo')
+const isProgress = computed(() => currentChart.type === 'progress')
+const isCircularProgress = computed(() => currentChart.type === 'circular-progress')
 
 const resetForm = () => {
   nextTick(() => {
@@ -724,6 +730,7 @@ const resetForm = () => {
     visualMap: true,
     longitudeField: '',
     latitudeField: '',
+    showLabel: true,
   })
 }
 
@@ -869,6 +876,7 @@ const handleEdit = chartToEdit => {
       visualMap: config.visualMap !== undefined ? config.visualMap : true,
       longitudeField: config.longitudeField || '',
       latitudeField: config.latitudeField || '',  
+      showLabel: config.showLabel !== undefined ? config.showLabel : true,
     };
 
     Object.assign(currentChart, newChartState);
@@ -928,7 +936,7 @@ const handlePreview = (chart) => {
       const rawData = await getQueryData(previewChart.queryID)
       const data = Array.isArray(rawData) ? rawData : (rawData.data || [])
       const option = convertToEchartsOption(config, data)
-      chartInstance.setOption(option)
+      chartInstance.setOption(option, true)
       chartInstance.resize()
     } catch (e) {
       console.error("图表预览失败:", e)
@@ -1144,6 +1152,35 @@ const handleSave = async () => {
         config.longitudeField = chartModel.longitudeField || '';
         config.latitudeField = chartModel.latitudeField || '';
         config.symbolSize = chartModel.symbolSize || 10;
+      }
+      
+      if (type === 'progress') {
+        config.nameField = chartModel.nameField || 'name';
+        config.valueField = chartModel.valueField || 'value';
+        config.categoryField = chartModel.categoryField;
+        config.colorField = chartModel.colorField;
+        config.descriptionField = chartModel.descriptionField;
+        config.title = chartModel.title || '';
+        config.subtitle = chartModel.subtitle || '';
+        config.max = chartModel.max !== undefined ? Number(chartModel.max) : 100;
+        config.showLabel = chartModel.showLabel !== false;
+        config.color = chartModel.color ? chartModel.color.split(',').filter(c => c.trim()) : [];
+        config.tooltip = chartModel.tooltip !== false;
+      }
+      
+      if (type === 'circular-progress') {
+        config.nameField = chartModel.nameField || 'name';
+        config.valueField = chartModel.valueField || 'value';
+        config.categoryField = chartModel.categoryField;
+        config.colorField = chartModel.colorField;
+        config.descriptionField = chartModel.descriptionField;
+        config.title = chartModel.title || '';
+        config.subtitle = chartModel.subtitle || '';
+        config.max = chartModel.max !== undefined ? Number(chartModel.max) : 100;
+        config.showLabel = chartModel.showLabel !== false;
+        config.color = chartModel.color ? chartModel.color.split(',').filter(c => c.trim()) : [];
+        config.tooltip = chartModel.tooltip !== false;
+        config.radius = chartModel.radius || ['70%', '90%'];
       }
             
       const chartData = {
@@ -2501,6 +2538,111 @@ function convertToEchartsOption(config, data = []) {
           itemStyle: { color: color[0] || '#1890ff' }
         }] : [])
       ]
+    };
+  }
+
+  if (type === 'progress') {
+    const nameField = config.nameField || 'name';
+    const valueField = config.valueField || 'value';
+    const colorField = config.colorField;
+    const descriptionField = config.descriptionField;
+    const max = config.max !== undefined ? Number(config.max) : 100;
+    const showLabel = config.showLabel !== false;
+    const colorArr = config.color && config.color.length ? config.color : ['#1890ff', '#2fc25b', '#facc14', '#f5222d'];
+    const tooltip = config.tooltip !== false;
+
+    const seriesData = data.map((d, idx) => ({
+      name: d[nameField],
+      value: Number(d[valueField]) || 0,
+      itemStyle: colorField ? { color: d[colorField] } : { color: colorArr[idx % colorArr.length] },
+      description: descriptionField ? d[descriptionField] : undefined
+    }));
+
+    option = {
+      title: { text: config.title || '', subtext: config.subtitle || '' },
+      tooltip: tooltip ? {
+        trigger: 'item',
+        formatter: function(params) {
+          let html = `${params.name}: ${params.value}`;
+          if (params.data && params.data.description) html += `<br/>${params.data.description}`;
+          return html;
+        }
+      } : undefined,
+      xAxis: { type: 'value', max },
+      yAxis: { type: 'category', data: seriesData.map(d => d.name) },
+      series: [{
+        type: 'bar',
+        data: seriesData,
+        label: showLabel ? { show: true, position: 'right' } : undefined,
+        barWidth: 20
+      }],
+      color: colorArr
+    };
+  }
+
+  if (type === 'circular-progress') {
+    const nameField = config.nameField || 'name';
+    const valueField = config.valueField || 'value';
+    const colorField = config.colorField;
+    const descriptionField = config.descriptionField;
+    const max = config.max !== undefined ? Number(config.max) : 100;
+    const showLabel = config.showLabel !== false;
+    const colorArr = config.color && config.color.length ? config.color : ['#1890ff', '#2fc25b', '#facc14', '#f5222d'];
+    const tooltip = config.tooltip !== false;
+    const radius = config.radius || ['70%', '90%'];
+
+    const seriesData = data.map((d, idx) => ({
+      name: d[nameField],
+      value: Number(d[valueField]) || 0,
+      itemStyle: colorField ? { color: d[colorField] } : { color: colorArr[idx % colorArr.length] },
+      description: descriptionField ? d[descriptionField] : undefined
+    }));
+
+    option = {
+      title: { text: config.title || '', subtext: config.subtitle || '' },
+      tooltip: tooltip ? {
+        trigger: 'item',
+        formatter: function(params) {
+          let html = `${params.name}: ${params.value}`;
+          if (params.data && params.data.description) html += `<br/>${params.data.description}`;
+          return html;
+        }
+      } : undefined,
+      legend: { show: false },
+      series: [{
+        type: 'pie',
+        radius,
+        avoidLabelOverlap: false,
+        label: showLabel ? {
+          show: true,
+          position: 'center',
+          formatter: function(params) {
+            if (params.dataIndex === 0) {
+              return `{a|${params.name}}\n{b|${params.value}/${max}}`;
+            }
+            return '';
+          },
+          rich: {
+            a: {
+              fontSize: 18,
+              fontWeight: 'bold',
+              color: '#333',
+              lineHeight: 28
+            },
+            b: {
+              fontSize: 16,
+              color: '#666',
+              lineHeight: 22
+            }
+          }
+        } : { show: false },
+        data: seriesData,
+        minAngle: 10,
+        startAngle: 90,
+        clockwise: true,
+        labelLine: { show: false }
+      }],
+      color: colorArr
     };
   }
 
