@@ -117,6 +117,7 @@
             <el-option label="关系图" value="graph" />
             <el-option label="瀑布图" value="waterfall" />
             <el-option label="极坐标图" value="polar" />
+            <el-option label="甘特图" value="gantt" />
           </el-select>
         </el-form-item>
         
@@ -198,7 +199,7 @@
           <el-input v-model="currentChart.volumeField" />
         </el-form-item>
         
-        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph || isWaterfall || isPolar">
+        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph || isWaterfall || isPolar || isGantt">
           <el-input v-model="currentChart.color" placeholder="如 #1890ff,#2fc25b,#facc14" />
         </el-form-item>
         <el-form-item label="堆叠" v-if="isXYType">
@@ -210,10 +211,10 @@
         <el-form-item label="填充透明度" v-if="isArea">
           <el-input-number v-model="currentChart.fillOpacity" :min="0" :max="1" :step="0.1" />
         </el-form-item>
-        <el-form-item label="显示图例" v-if="isArea || isGraph || isWaterfall">
+        <el-form-item label="显示图例" v-if="isArea || isGraph || isWaterfall || isGantt">
           <el-switch v-model="currentChart.legend" />
         </el-form-item>
-        <el-form-item label="显示提示框" v-if="isArea || isBoxplot || isGraph || isWaterfall || isPolar">
+        <el-form-item label="显示提示框" v-if="isArea || isBoxplot || isGraph || isWaterfall || isPolar || isGantt">
           <el-switch v-model="currentChart.tooltip" />
         </el-form-item>
         
@@ -363,6 +364,36 @@
         <el-form-item label="描述字段" v-if="isWaterfall || isPolar">
           <el-input v-model="currentChart.descriptionField" placeholder="如 description，显示在tooltip" />
         </el-form-item>
+        <el-form-item label="任务字段" v-if="isGantt">
+          <el-input v-model="currentChart.taskField" placeholder="如 task_name" />
+        </el-form-item>
+        <el-form-item label="开始时间字段" v-if="isGantt">
+          <el-input v-model="currentChart.startField" placeholder="如 start_date" />
+        </el-form-item>
+        <el-form-item label="结束时间字段" v-if="isGantt">
+          <el-input v-model="currentChart.endField" placeholder="如 end_date" />
+        </el-form-item>
+        <el-form-item label="工期字段" v-if="isGantt">
+          <el-input v-model="currentChart.durationField" placeholder="如 duration" />
+        </el-form-item>
+        <el-form-item label="进度字段" v-if="isGantt">
+          <el-input v-model="currentChart.progressField" placeholder="如 progress" />
+        </el-form-item>
+        <el-form-item label="状态字段" v-if="isGantt">
+          <el-input v-model="currentChart.statusField" placeholder="如 status" />
+        </el-form-item>
+        <el-form-item label="负责人字段" v-if="isGantt">
+          <el-input v-model="currentChart.assigneeField" placeholder="如 assignee" />
+        </el-form-item>
+        <el-form-item label="依赖字段" v-if="isGantt">
+          <el-input v-model="currentChart.dependenciesField" placeholder="如 dependencies" />
+        </el-form-item>
+        <el-form-item label="项目字段" v-if="isGantt">
+          <el-input v-model="currentChart.projectField" placeholder="如 project" />
+        </el-form-item>
+        <el-form-item label="优先级字段" v-if="isGantt">
+          <el-input v-model="currentChart.priorityField" placeholder="如 priority" />
+        </el-form-item>
       </el-form>
       
       <template #footer>
@@ -491,6 +522,17 @@ const currentChart = reactive({
   angleField: '',
   seriesField: '',
   descriptionField: '',
+  // 甘特图专用字段
+  taskField: '',
+  startField: '',
+  endField: '',
+  durationField: '',
+  progressField: '',
+  statusField: '',
+  assigneeField: '',
+  dependenciesField: '',
+  projectField: '',
+  priorityField: '',
 })
 
 const rules = {
@@ -525,6 +567,7 @@ const isWordcloud = computed(() => currentChart.type === 'wordcloud')
 const isGraph = computed(() => currentChart.type === 'graph')
 const isWaterfall = computed(() => currentChart.type === 'waterfall')
 const isPolar = computed(() => currentChart.type === 'polar')
+const isGantt = computed(() => currentChart.type === 'gantt')
 
 const resetForm = () => {
   nextTick(() => {
@@ -601,6 +644,17 @@ const resetForm = () => {
     angleField: '',
     seriesField: '',
     descriptionField: '',
+    // 甘特图专用字段
+    taskField: '',
+    startField: '',
+    endField: '',
+    durationField: '',
+    progressField: '',
+    statusField: '',
+    assigneeField: '',
+    dependenciesField: '',
+    projectField: '',
+    priorityField: '',
   })
 }
 
@@ -727,6 +781,17 @@ const handleEdit = chartToEdit => {
       angleField: config.angleField || '',
       seriesField: config.seriesField || '',
       descriptionField: config.descriptionField || '',
+      // 甘特图专用字段
+      taskField: config.taskField || '',
+      startField: config.startField || '',
+      endField: config.endField || '',
+      durationField: config.durationField || '',
+      progressField: config.progressField || '',
+      statusField: config.statusField || '',
+      assigneeField: config.assigneeField || '',
+      dependenciesField: config.dependenciesField || '',
+      projectField: config.projectField || '',
+      priorityField: config.priorityField || '',
     };
 
     Object.assign(currentChart, newChartState);
@@ -955,6 +1020,23 @@ const handleSave = async () => {
         config.legend = chartModel.legend
         config.color = chartModel.color ? chartModel.color.split(',').filter(c => c.trim()) : []
         config.tooltip = chartModel.tooltip
+        config.title = chartModel.chartTitle
+      }
+      
+      if (type === 'gantt') {
+        config.taskField = chartModel.taskField
+        config.startField = chartModel.startField
+        config.endField = chartModel.endField
+        config.progressField = chartModel.progressField
+        config.projectField = chartModel.projectField
+        config.color = chartModel.color ? chartModel.color.split(',').filter(c => c.trim()) : []
+        config.legend = chartModel.legend !== false
+        config.tooltip = chartModel.tooltip !== false
+        config.durationField = chartModel.durationField
+        config.statusField = chartModel.statusField
+        config.assigneeField = chartModel.assigneeField
+        config.dependenciesField = chartModel.dependenciesField
+        config.priorityField = chartModel.priorityField
         config.title = chartModel.title
       }
       
@@ -2081,6 +2163,82 @@ function convertToEchartsOption(config, data = []) {
       angleAxis: { type: 'category', data: angleData },
       radiusAxis: {},
       series
+    }
+  }
+
+  if (type === 'gantt') {
+    if (!Array.isArray(data)) {
+      console.warn('gantt: data is not array', data)
+      return { title: { text: config.title || '无数据' } }
+    }
+    const taskField = config.taskField
+    const startField = config.startField
+    const endField = config.endField
+    const progressField = config.progressField
+    const projectField = config.projectField
+    const color = config.color || ['#1890ff', '#f5222d', '#2fc25b']
+    const legend = config.legend !== false
+    const tooltip = config.tooltip !== false
+
+    // 分组（如项目名）
+    const groups = projectField ? [...new Set(data.map(d => d[projectField]))] : ['全部']
+    // 任务名
+    const tasks = data.map(d => d[taskField])
+    // 计算每个任务的起止
+    const seriesData = data.map((d, idx) => {
+      const start = new Date(d[startField])
+      const end = new Date(d[endField])
+      if (isNaN(start) || isNaN(end)) return null
+      return {
+        name: d[taskField],
+        value: [
+          idx,
+          start.getTime(),
+          end.getTime(),
+          d[progressField] ? Number(d[progressField]) : undefined
+        ],
+        itemStyle: { color: color[idx % color.length] }
+      }
+    }).filter(Boolean)
+
+    option = {
+      title: { text: config.title || '' },
+      tooltip: tooltip ? {
+        formatter: function(params) {
+          const d = params.data
+          let html = `${d.name}<br/>`
+          html += `开始: ${new Date(d.value[1]).toLocaleDateString()}<br/>`
+          html += `结束: ${new Date(d.value[2]).toLocaleDateString()}<br/>`
+          if (d.value[3] !== undefined) html += `进度: ${d.value[3]}%<br/>`
+          return html
+        }
+      } : undefined,
+      grid: { left: 150, right: 50 },
+      xAxis: { type: 'time' },
+      yAxis: { data: seriesData.map(d => d.name), type: 'category' },
+      series: [{
+        type: 'custom',
+        renderItem: function(params, api) {
+          const categoryIndex = api.value(0)
+          const start = api.coord([api.value(1), categoryIndex])
+          const end = api.coord([api.value(2), categoryIndex])
+          const height = api.size([0, 1])[1] * 0.6
+          const colorArr = config.color || ['#1890ff', '#f5222d', '#2fc25b']
+          const color = colorArr[categoryIndex % colorArr.length]
+          return {
+            type: 'rect',
+            shape: {
+              x: start[0],
+              y: start[1] - height / 2,
+              width: Math.max(end[0] - start[0], 1),
+              height: height
+            },
+            style: { fill: color }
+          }
+        },
+        encode: { x: [1, 2], y: 0 },
+        data: seriesData
+      }]
     }
   }
 
