@@ -119,6 +119,7 @@
             <el-option label="极坐标图" value="polar" />
             <el-option label="甘特图" value="gantt" />
             <el-option label="玫瑰图" value="rose" />
+            <el-option label="分级着色图" value="choropleth" />
           </el-select>
         </el-form-item>
         
@@ -169,7 +170,7 @@
           <el-input v-model="currentChart.angleField" />
         </el-form-item>
 
-        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree || isGraph || isPolar || isRose">
+        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree || isGraph || isPolar || isRose || isChoropleth">
           <el-input v-model="currentChart.valueField" />
         </el-form-item>
 
@@ -200,7 +201,7 @@
           <el-input v-model="currentChart.volumeField" />
         </el-form-item>
         
-        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph || isWaterfall || isPolar || isGantt || isRose">
+        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph || isWaterfall || isPolar || isGantt || isRose || isChoropleth">
           <el-input v-model="currentChart.color" placeholder="如 #1890ff,#2fc25b,#facc14" />
         </el-form-item>
         <el-form-item label="堆叠" v-if="isXYType">
@@ -362,7 +363,7 @@
         <el-form-item label="类型字段" v-if="isWaterfall">
           <el-input v-model="currentChart.typeField" placeholder="如 type，区分增/减/小计" />
         </el-form-item>
-        <el-form-item label="描述字段" v-if="isWaterfall || isPolar || isRose">
+        <el-form-item label="描述字段" v-if="isWaterfall || isPolar || isRose || isChoropleth">
           <el-input v-model="currentChart.descriptionField" placeholder="如 description，显示在tooltip" />
         </el-form-item>
         <el-form-item label="任务字段" v-if="isGantt">
@@ -396,7 +397,7 @@
           <el-input v-model="currentChart.priorityField" placeholder="如 priority" />
         </el-form-item>
         <!-- 玫瑰图专用表单项 -->
-        <el-form-item label="类别字段" v-if="isRose">
+        <el-form-item label="类别字段" v-if="isRose || isChoropleth">
           <el-input v-model="currentChart.categoryField" placeholder="如 category" />
         </el-form-item>
         <el-form-item label="玫瑰图类型" v-if="isRose">
@@ -410,6 +411,26 @@
         </el-form-item>
         <el-form-item label="玫瑰图中心" v-if="isRose">
           <el-input v-model="currentChart.center" placeholder="如 50%,50%" />
+        </el-form-item>
+        <!-- 地图分级着色图专用表单项 -->
+        <el-form-item label="地区字段" v-if="isChoropleth">
+          <el-input v-model="currentChart.regionField" placeholder="如 region" />
+        </el-form-item>
+        <el-form-item label="经度字段名" v-if="isChoropleth">
+          <el-input v-model="currentChart.longitudeField" placeholder="如 longitude" />
+        </el-form-item>
+        <el-form-item label="纬度字段名" v-if="isChoropleth">
+          <el-input v-model="currentChart.latitudeField" placeholder="如 latitude" />
+        </el-form-item>
+        <el-form-item label="地图类型" v-if="isChoropleth">
+          <el-select v-model="currentChart.mapType" style="width: 100%">
+            <el-option label="中国地图" value="china" />
+            <el-option label="分省数据" value="province" />
+            <el-option label="自定义地图" value="custom" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="是否显示visualMap" v-if="isChoropleth">
+          <el-switch v-model="currentChart.visualMap" />
         </el-form-item>
       </el-form>
       
@@ -455,10 +476,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import axios from 'axios'
 import { lo } from 'element-plus/es/locales.mjs'
 import * as echarts from 'echarts'
+import chinaMap from '@/assets/china.json';
 import 'echarts-gl'
 import 'echarts-wordcloud'
 import { Download, Printer } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
+
+echarts.registerMap('china', chinaMap);
 
 const charts = ref([])
 const queries = ref([])
@@ -553,6 +577,11 @@ const currentChart = reactive({
   categoryField: '',
   roseType: 'radius',
   center: ['50%', '50%'],
+  regionField: '',
+  mapType: 'china',
+  visualMap: true,
+  longitudeField: '',
+  latitudeField: '',
 })
 
 const rules = {
@@ -589,6 +618,7 @@ const isWaterfall = computed(() => currentChart.type === 'waterfall')
 const isPolar = computed(() => currentChart.type === 'polar')
 const isGantt = computed(() => currentChart.type === 'gantt')
 const isRose = computed(() => currentChart.type === 'rose')
+const isChoropleth = computed(() => currentChart.type === 'choropleth')
 
 const resetForm = () => {
   nextTick(() => {
@@ -679,6 +709,11 @@ const resetForm = () => {
     categoryField: '',
     roseType: 'radius',
     center: ['50%', '50%'],
+    regionField: '',
+    mapType: 'china',
+    visualMap: true,
+    longitudeField: '',
+    latitudeField: '',
   })
 }
 
@@ -819,6 +854,11 @@ const handleEdit = chartToEdit => {
       categoryField: config.categoryField || '',
       roseType: config.roseType || 'radius',
       center: config.center || ['50%', '50%'],
+      regionField: config.regionField || '',
+      mapType: config.mapType || 'china',
+      visualMap: config.visualMap !== undefined ? config.visualMap : true,
+      longitudeField: config.longitudeField || '',
+      latitudeField: config.latitudeField || '',  
     };
 
     Object.assign(currentChart, newChartState);
@@ -1108,6 +1148,23 @@ const handleSave = async () => {
         }
       }
       
+      if (type === 'choropleth') {
+        // 地图分级着色图
+        config.regionField = chartModel.regionField || 'region';
+        config.valueField = chartModel.valueField || 'value';
+        config.categoryField = chartModel.categoryField;
+        config.descriptionField = chartModel.descriptionField;
+        config.mapType = chartModel.mapType || 'china';
+        config.color = chartModel.color ? chartModel.color.split(',').filter(c => c.trim()) : []
+        config.visualMapShow = chartModel.visualMap !== false;
+        config.legendShow = chartModel.legend !== false;
+        config.tooltipShow = chartModel.tooltip !== false;
+        config.title = chartModel.title || '';
+        config.subtitle = chartModel.subtitle || '';
+        config.longitudeField = chartModel.longitudeField || '';
+        config.latitudeField = chartModel.latitudeField || '';
+      }
+      
       const chartData = {
         name: chartModel.name,
         description: chartModel.description,
@@ -1277,7 +1334,6 @@ watch(previewVisible, async (val) => {
 })
 
 function convertToEchartsOption(config, data = []) {
-
   const type = config.type || currentChart.type
   let option = {}; // Default to an empty object
 
@@ -2349,6 +2405,112 @@ function convertToEchartsOption(config, data = []) {
         data: pieData
       }]
     }
+  }
+
+  if (type === 'choropleth') {
+
+    // 地图分级着色图
+    const regionField = config.regionField || 'region';
+    const valueField = config.valueField || 'value';
+    const categoryField = config.categoryField;
+    const descriptionField = config.descriptionField;
+    const mapType = config.mapType || 'china';
+    const color = config.color || ['#1890ff', '#2fc25b', '#facc14', '#f5222d', '#722ed1'];
+    const visualMapShow = config.visualMap !== false;
+    const legendShow = config.legend !== false;
+    const tooltipShow = config.tooltip !== false;
+    const title = config.title || '';
+    const subtitle = config.subtitle || '';
+    const longitudeField = config.longitudeField;
+    const latitudeField = config.latitudeField;
+
+    // 处理地图数据
+    const mapData = (data || []).map(d => ({
+      name: d[regionField],
+      value: Number(d[valueField]) || 0,
+      category: categoryField ? d[categoryField] : undefined,
+      description: descriptionField ? d[descriptionField] : undefined
+    }));
+
+    // 处理点标注数据（如有经纬度字段）
+    let scatterData = [];
+    if (longitudeField && latitudeField) {
+      scatterData = (data || []).map(d => {
+        const lon = Number(d[longitudeField]);
+        const lat = Number(d[latitudeField]);
+        if (isNaN(lon) || isNaN(lat)) return null;
+        return {
+          name: d[regionField] || d.name,
+          value: [lon, lat, Number(d[valueField]) || 0],
+          description: descriptionField ? d[descriptionField] : undefined
+        };
+      }).filter(Boolean);
+    }
+
+    // 计算 value 范围
+    const values = mapData.map(d => d.value).filter(v => !isNaN(v));
+    const min = Math.min(...values, 0);
+    const max = Math.max(...values, 100);
+
+    // 图例分组
+    let legendData = [];
+    if (categoryField) {
+      legendData = [...new Set(mapData.map(d => d.category))].filter(Boolean);
+    }
+
+    // option 生成
+    option = {
+      title: { text: title, subtext: subtitle },
+      tooltip: tooltipShow ? {
+        trigger: 'item',
+        formatter: function(params) {
+          if (params.seriesType === 'scatter') {
+            let html = `${params.name || ''}<br/>经纬度: ${params.value[0]}, ${params.value[1]}<br/>值: ${params.value[2]}`;
+            if (params.data && params.data.description) html += `<br/>${params.data.description}`;
+            return html;
+          } else {
+            let html = `${params.name}: ${params.value}`;
+            if (params.data && params.data.description) html += `<br/>${params.data.description}`;
+            return html;
+          }
+        }
+      } : undefined,
+      legend: legendShow && legendData.length ? { data: legendData, orient: 'vertical', left: 10, top: 20 } : undefined,
+      visualMap: visualMapShow ? {
+        min,
+        max,
+        left: 'right',
+        top: 'bottom',
+        text: ['高','低'],
+        inRange: { color },
+        calculable: true
+      } : undefined,
+      geo: longitudeField && latitudeField ? {
+        map: mapType,
+        roam: true,
+        label: { show: false },
+        emphasis: { label: { show: false } }
+      } : undefined,
+      series: [
+        {
+          type: 'map',
+          map: mapType,
+          roam: true,
+          data: mapData,
+          label: { show: true },
+          emphasis: { label: { show: true } }
+        },
+        ...(scatterData.length > 0 ? [{
+          type: 'scatter',
+          coordinateSystem: 'geo',
+          data: scatterData,
+          symbolSize: 10,
+          label: { show: false },
+          emphasis: { label: { show: true } },
+          itemStyle: { color: color[0] || '#1890ff' }
+        }] : [])
+      ]
+    };
   }
 
   return option;
