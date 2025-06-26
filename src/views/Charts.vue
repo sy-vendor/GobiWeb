@@ -118,6 +118,7 @@
             <el-option label="瀑布图" value="waterfall" />
             <el-option label="极坐标图" value="polar" />
             <el-option label="甘特图" value="gantt" />
+            <el-option label="玫瑰图" value="rose" />
           </el-select>
         </el-form-item>
         
@@ -152,7 +153,7 @@
           <el-input v-model="currentChart.zField" />
         </el-form-item>
 
-        <el-form-item label="颜色字段" v-if="is3DScatter || isTreemap || isSunburst || isWordcloud">
+        <el-form-item label="颜色字段" v-if="is3DScatter || isTreemap || isSunburst || isWordcloud || isRose">
           <el-input v-model="currentChart.colorField" placeholder="用于区分颜色的数据列名" />
         </el-form-item>
 
@@ -164,11 +165,11 @@
           <el-input v-model="currentChart.seriesField" />
         </el-form-item>
 
-        <el-form-item label="角度字段" v-if="isPie || isPolar">
+        <el-form-item label="角度字段" v-if="isPie || isPolar || isRose">
           <el-input v-model="currentChart.angleField" />
         </el-form-item>
 
-        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree || isGraph || isPolar">
+        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree || isGraph || isPolar || isRose">
           <el-input v-model="currentChart.valueField" />
         </el-form-item>
 
@@ -199,7 +200,7 @@
           <el-input v-model="currentChart.volumeField" />
         </el-form-item>
         
-        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph || isWaterfall || isPolar || isGantt">
+        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph || isWaterfall || isPolar || isGantt || isRose">
           <el-input v-model="currentChart.color" placeholder="如 #1890ff,#2fc25b,#facc14" />
         </el-form-item>
         <el-form-item label="堆叠" v-if="isXYType">
@@ -211,10 +212,10 @@
         <el-form-item label="填充透明度" v-if="isArea">
           <el-input-number v-model="currentChart.fillOpacity" :min="0" :max="1" :step="0.1" />
         </el-form-item>
-        <el-form-item label="显示图例" v-if="isArea || isGraph || isWaterfall || isGantt">
+        <el-form-item label="显示图例" v-if="isArea || isGraph || isWaterfall || isGantt || isRose">
           <el-switch v-model="currentChart.legend" />
         </el-form-item>
-        <el-form-item label="显示提示框" v-if="isArea || isBoxplot || isGraph || isWaterfall || isPolar || isGantt">
+        <el-form-item label="显示提示框" v-if="isArea || isBoxplot || isGraph || isWaterfall || isPolar || isGantt || isRose">
           <el-switch v-model="currentChart.tooltip" />
         </el-form-item>
         
@@ -361,7 +362,7 @@
         <el-form-item label="类型字段" v-if="isWaterfall">
           <el-input v-model="currentChart.typeField" placeholder="如 type，区分增/减/小计" />
         </el-form-item>
-        <el-form-item label="描述字段" v-if="isWaterfall || isPolar">
+        <el-form-item label="描述字段" v-if="isWaterfall || isPolar || isRose">
           <el-input v-model="currentChart.descriptionField" placeholder="如 description，显示在tooltip" />
         </el-form-item>
         <el-form-item label="任务字段" v-if="isGantt">
@@ -393,6 +394,22 @@
         </el-form-item>
         <el-form-item label="优先级字段" v-if="isGantt">
           <el-input v-model="currentChart.priorityField" placeholder="如 priority" />
+        </el-form-item>
+        <!-- 玫瑰图专用表单项 -->
+        <el-form-item label="类别字段" v-if="isRose">
+          <el-input v-model="currentChart.categoryField" placeholder="如 category" />
+        </el-form-item>
+        <el-form-item label="玫瑰图类型" v-if="isRose">
+          <el-select v-model="currentChart.roseType" style="width: 100%">
+            <el-option label="radius" value="radius" />
+            <el-option label="area" value="area" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="玫瑰图半径" v-if="isRose">
+          <el-input v-model="currentChart.radius" placeholder="如 20%,80%" />
+        </el-form-item>
+        <el-form-item label="玫瑰图中心" v-if="isRose">
+          <el-input v-model="currentChart.center" placeholder="如 50%,50%" />
         </el-form-item>
       </el-form>
       
@@ -533,6 +550,9 @@ const currentChart = reactive({
   dependenciesField: '',
   projectField: '',
   priorityField: '',
+  categoryField: '',
+  roseType: 'radius',
+  center: ['50%', '50%'],
 })
 
 const rules = {
@@ -568,6 +588,7 @@ const isGraph = computed(() => currentChart.type === 'graph')
 const isWaterfall = computed(() => currentChart.type === 'waterfall')
 const isPolar = computed(() => currentChart.type === 'polar')
 const isGantt = computed(() => currentChart.type === 'gantt')
+const isRose = computed(() => currentChart.type === 'rose')
 
 const resetForm = () => {
   nextTick(() => {
@@ -655,6 +676,9 @@ const resetForm = () => {
     dependenciesField: '',
     projectField: '',
     priorityField: '',
+    categoryField: '',
+    roseType: 'radius',
+    center: ['50%', '50%'],
   })
 }
 
@@ -792,6 +816,9 @@ const handleEdit = chartToEdit => {
       dependenciesField: config.dependenciesField || '',
       projectField: config.projectField || '',
       priorityField: config.priorityField || '',
+      categoryField: config.categoryField || '',
+      roseType: config.roseType || 'radius',
+      center: config.center || ['50%', '50%'],
     };
 
     Object.assign(currentChart, newChartState);
@@ -1038,6 +1065,47 @@ const handleSave = async () => {
         config.dependenciesField = chartModel.dependenciesField
         config.priorityField = chartModel.priorityField
         config.title = chartModel.title
+      }
+      
+      if (type === 'rose') {
+        const keys = Object.keys(data[0] || {})
+        const angleField = config.angleField || config.valueField || keys.find(k => typeof data[0][k] === 'number') || keys[1] || ''
+        const categoryField = config.categoryField || config.colorField || config.seriesField || keys.find(k => k !== angleField) || keys[0] || ''
+        const descriptionField = config.descriptionField
+        const pieData = data.map(d => ({
+          name: d[categoryField],
+          value: Number(d[angleField]) || 0,
+          description: descriptionField ? d[descriptionField] : undefined
+        }))
+        option = {
+          title: { text: config.title || '', subtext: config.subtitle || '' },
+          tooltip: config.tooltip !== false ? {
+            formatter: function(params) {
+              let html = `${params.name}: ${params.value}`
+              if (params.data && params.data.description) html += `<br/>${params.data.description}`
+              return html
+            }
+          } : undefined,
+          legend: config.legend ? { data: pieData.map(d => d.name), orient: 'vertical', right: 10, top: 20 } : undefined,
+          color: config.color || ['#1890ff', '#2fc25b', '#facc14', '#f5222d', '#722ed1'],
+          series: [{
+            type: 'pie',
+            roseType: config.roseType || 'radius',
+            radius: config.radius || ['20%', '80%'],
+            center: config.center || ['50%', '50%'],
+            label: config.label || { show: true, position: 'outside' },
+            itemStyle: { borderColor: '#fff', borderWidth: 2 },
+            emphasis: {
+              itemStyle: {
+                borderColor: '#fff',
+                borderWidth: 2,
+                shadowBlur: 10,
+                shadowColor: 'rgba(0, 0, 0, 0.2)'
+              }
+            },
+            data: pieData
+          }]
+        }
       }
       
       const chartData = {
@@ -2238,6 +2306,47 @@ function convertToEchartsOption(config, data = []) {
         },
         encode: { x: [1, 2], y: 0 },
         data: seriesData
+      }]
+    }
+  }
+
+  if (type === 'rose') {
+    const keys = Object.keys(data[0] || {})
+    const angleField = config.angleField || config.valueField || keys.find(k => typeof data[0][k] === 'number') || keys[1] || ''
+    const categoryField = config.categoryField || config.colorField || config.seriesField || keys.find(k => k !== angleField) || keys[0] || ''
+    const descriptionField = config.descriptionField
+    const pieData = data.map(d => ({
+      name: d[categoryField],
+      value: Number(d[angleField]) || 0,
+      description: descriptionField ? d[descriptionField] : undefined
+    }))
+    option = {
+      title: { text: config.title || '', subtext: config.subtitle || '' },
+      tooltip: config.tooltip !== false ? {
+        formatter: function(params) {
+          let html = `${params.name}: ${params.value}`
+          if (params.data && params.data.description) html += `<br/>${params.data.description}`
+          return html
+        }
+      } : undefined,
+      legend: config.legend ? { data: pieData.map(d => d.name), orient: 'vertical', right: 10, top: 20 } : undefined,
+      color: config.color || ['#1890ff', '#2fc25b', '#facc14', '#f5222d', '#722ed1'],
+      series: [{
+        type: 'pie',
+        roseType: config.roseType || 'radius',
+        radius: config.radius || ['20%', '80%'],
+        center: config.center || ['50%', '50%'],
+        label: config.label || { show: true, position: 'outside' },
+        itemStyle: { borderColor: '#fff', borderWidth: 2 },
+        emphasis: {
+          itemStyle: {
+            borderColor: '#fff',
+            borderWidth: 2,
+            shadowBlur: 10,
+            shadowColor: 'rgba(0, 0, 0, 0.2)'
+          }
+        },
+        data: pieData
       }]
     }
   }
