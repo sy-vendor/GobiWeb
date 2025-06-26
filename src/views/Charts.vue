@@ -120,6 +120,8 @@
             <el-option label="甘特图" value="gantt" />
             <el-option label="玫瑰图" value="rose" />
             <el-option label="分级着色图" value="choropleth" />
+            <el-option label="地图" value="map" />
+            <el-option label="地理图" value="geo" />
           </el-select>
         </el-form-item>
         
@@ -170,7 +172,7 @@
           <el-input v-model="currentChart.angleField" />
         </el-form-item>
 
-        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree || isGraph || isPolar || isRose || isChoropleth">
+        <el-form-item label="数值字段" v-if="isPie || isGauge || isRadar || isFunnel || isTreemap || isSunburst || isTree || isGraph || isPolar || isRose || isChoropleth || isMap || isGeo">
           <el-input v-model="currentChart.valueField" />
         </el-form-item>
 
@@ -201,7 +203,7 @@
           <el-input v-model="currentChart.volumeField" />
         </el-form-item>
         
-        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph || isWaterfall || isPolar || isGantt || isRose || isChoropleth">
+        <el-form-item label="颜色" v-if="isArea || isBoxplot || isCandlestick || isWordcloud || is3DType || isGraph || isWaterfall || isPolar || isGantt || isRose || isChoropleth || isMap || isGeo">
           <el-input v-model="currentChart.color" placeholder="如 #1890ff,#2fc25b,#facc14" />
         </el-form-item>
         <el-form-item label="堆叠" v-if="isXYType">
@@ -363,7 +365,7 @@
         <el-form-item label="类型字段" v-if="isWaterfall">
           <el-input v-model="currentChart.typeField" placeholder="如 type，区分增/减/小计" />
         </el-form-item>
-        <el-form-item label="描述字段" v-if="isWaterfall || isPolar || isRose || isChoropleth">
+        <el-form-item label="描述字段" v-if="isWaterfall || isPolar || isRose || isChoropleth || isMap || isGeo">
           <el-input v-model="currentChart.descriptionField" placeholder="如 description，显示在tooltip" />
         </el-form-item>
         <el-form-item label="任务字段" v-if="isGantt">
@@ -397,7 +399,7 @@
           <el-input v-model="currentChart.priorityField" placeholder="如 priority" />
         </el-form-item>
         <!-- 玫瑰图专用表单项 -->
-        <el-form-item label="类别字段" v-if="isRose || isChoropleth">
+        <el-form-item label="类别字段" v-if="isRose || isChoropleth || isMap || isGeo">
           <el-input v-model="currentChart.categoryField" placeholder="如 category" />
         </el-form-item>
         <el-form-item label="玫瑰图类型" v-if="isRose">
@@ -413,24 +415,28 @@
           <el-input v-model="currentChart.center" placeholder="如 50%,50%" />
         </el-form-item>
         <!-- 地图分级着色图专用表单项 -->
-        <el-form-item label="地区字段" v-if="isChoropleth">
+        <el-form-item label="地区字段" v-if="isChoropleth || isMap || isGeo">
           <el-input v-model="currentChart.regionField" placeholder="如 region" />
         </el-form-item>
-        <el-form-item label="经度字段名" v-if="isChoropleth">
+        <el-form-item label="经度字段名" v-if="isChoropleth || isMap || isGeo">
           <el-input v-model="currentChart.longitudeField" placeholder="如 longitude" />
         </el-form-item>
-        <el-form-item label="纬度字段名" v-if="isChoropleth">
+        <el-form-item label="纬度字段名" v-if="isChoropleth || isMap || isGeo">
           <el-input v-model="currentChart.latitudeField" placeholder="如 latitude" />
         </el-form-item>
-        <el-form-item label="地图类型" v-if="isChoropleth">
+        <el-form-item label="地图类型" v-if="isChoropleth || isMap || isGeo">
           <el-select v-model="currentChart.mapType" style="width: 100%">
-            <el-option label="中国地图" value="china" />
-            <el-option label="分省数据" value="province" />
+            <el-option label="中国地图" value="china" v-if="isChoropleth || isMap || isGeo"/>
+            <el-option label="分省数据" value="province" v-if="isChoropleth || isMap || isGeo" />
+            <el-option label="世界地图" value="world" v-if="isMap" />
             <el-option label="自定义地图" value="custom" />
           </el-select>
         </el-form-item>
-        <el-form-item label="是否显示visualMap" v-if="isChoropleth">
+        <el-form-item label="是否显示visualMap" v-if="isChoropleth || isMap || isGeo">
           <el-switch v-model="currentChart.visualMap" />
+        </el-form-item>
+        <el-form-item label="散点大小" v-if="isGeo">
+          <el-input v-model="currentChart.symbolSize" placeholder="如 10" />
         </el-form-item>
       </el-form>
       
@@ -621,6 +627,8 @@ const isPolar = computed(() => currentChart.type === 'polar')
 const isGantt = computed(() => currentChart.type === 'gantt')
 const isRose = computed(() => currentChart.type === 'rose')
 const isChoropleth = computed(() => currentChart.type === 'choropleth')
+const isMap = computed(() => currentChart.type === 'map')
+const isGeo = computed(() => currentChart.type === 'geo')
 
 const resetForm = () => {
   nextTick(() => {
@@ -1120,7 +1128,7 @@ const handleSave = async () => {
         config.color = chartModel.color ? chartModel.color.split(',').filter(c => c.trim()) : [];
       }
       
-      if (type === 'choropleth') {
+      if (type === 'choropleth' || type === 'geo' || type === 'map') {
         // 地图分级着色图
         config.regionField = chartModel.regionField || 'region';
         config.valueField = chartModel.valueField || 'value';
@@ -1135,8 +1143,9 @@ const handleSave = async () => {
         config.subtitle = chartModel.subtitle || '';
         config.longitudeField = chartModel.longitudeField || '';
         config.latitudeField = chartModel.latitudeField || '';
+        config.symbolSize = chartModel.symbolSize || 10;
       }
-      
+            
       const chartData = {
         name: chartModel.name,
         description: chartModel.description,
@@ -1308,6 +1317,16 @@ watch(previewVisible, async (val) => {
 function convertToEchartsOption(config, data = []) {
   const type = config.type || currentChart.type
   let option = {}; // Default to an empty object
+
+  // 支持 type: 'map' 时自动走 choropleth/world 地图渲染逻辑
+  if (type === 'map') {
+    config.type = 'choropleth';
+    return convertToEchartsOption(config, data);
+  }
+  if (type === 'geo') {
+    config.type = 'choropleth';
+    return convertToEchartsOption(config, data);
+  }
 
   if (type === '3d-bubble' || type === '3d-scatter') {
     const xField = config.xField;
@@ -2476,7 +2495,7 @@ function convertToEchartsOption(config, data = []) {
           type: 'scatter',
           coordinateSystem: 'geo',
           data: scatterData,
-          symbolSize: 10,
+          symbolSize: config.symbolSize || 10,
           label: { show: false },
           emphasis: { label: { show: true } },
           itemStyle: { color: color[0] || '#1890ff' }
