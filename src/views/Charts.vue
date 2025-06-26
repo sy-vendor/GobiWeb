@@ -477,12 +477,14 @@ import axios from 'axios'
 import { lo } from 'element-plus/es/locales.mjs'
 import * as echarts from 'echarts'
 import chinaMap from '@/assets/china.json';
+import worldMap from '@/assets/world.json';
 import 'echarts-gl'
 import 'echarts-wordcloud'
 import { Download, Printer } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 
 echarts.registerMap('china', chinaMap);
+echarts.registerMap('world', worldMap);
 
 const charts = ref([])
 const queries = ref([])
@@ -1108,44 +1110,14 @@ const handleSave = async () => {
       }
       
       if (type === 'rose') {
-        const keys = Object.keys(data[0] || {})
-        const angleField = config.angleField || config.valueField || keys.find(k => typeof data[0][k] === 'number') || keys[1] || ''
-        const categoryField = config.categoryField || config.colorField || config.seriesField || keys.find(k => k !== angleField) || keys[0] || ''
-        const descriptionField = config.descriptionField
-        const pieData = data.map(d => ({
-          name: d[categoryField],
-          value: Number(d[angleField]) || 0,
-          description: descriptionField ? d[descriptionField] : undefined
-        }))
-        option = {
-          title: { text: config.title || '', subtext: config.subtitle || '' },
-          tooltip: config.tooltip !== false ? {
-            formatter: function(params) {
-              let html = `${params.name}: ${params.value}`
-              if (params.data && params.data.description) html += `<br/>${params.data.description}`
-              return html
-            }
-          } : undefined,
-          legend: config.legend ? { data: pieData.map(d => d.name), orient: 'vertical', right: 10, top: 20 } : undefined,
-          color: config.color || ['#1890ff', '#2fc25b', '#facc14', '#f5222d', '#722ed1'],
-          series: [{
-            type: 'pie',
-            roseType: config.roseType || 'radius',
-            radius: config.radius || ['20%', '80%'],
-            center: config.center || ['50%', '50%'],
-            label: config.label || { show: true, position: 'outside' },
-            itemStyle: { borderColor: '#fff', borderWidth: 2 },
-            emphasis: {
-              itemStyle: {
-                borderColor: '#fff',
-                borderWidth: 2,
-                shadowBlur: 10,
-                shadowColor: 'rgba(0, 0, 0, 0.2)'
-              }
-            },
-            data: pieData
-          }]
-        }
+        config.roseType = chartModel.roseType || 'radius';
+        config.radius = chartModel.radius;
+        config.center = chartModel.center;
+        config.angleField = chartModel.angleField;
+        config.valueField = chartModel.valueField;
+        config.categoryField = chartModel.categoryField;
+        config.descriptionField = chartModel.descriptionField;
+        config.color = chartModel.color ? chartModel.color.split(',').filter(c => c.trim()) : [];
       }
       
       if (type === 'choropleth') {
@@ -2386,7 +2358,7 @@ function convertToEchartsOption(config, data = []) {
         }
       } : undefined,
       legend: config.legend ? { data: pieData.map(d => d.name), orient: 'vertical', right: 10, top: 20 } : undefined,
-      color: config.color || ['#1890ff', '#2fc25b', '#facc14', '#f5222d', '#722ed1'],
+      color: config.color && config.color.length ? config.color : ['#1890ff', '#2fc25b', '#facc14', '#f5222d', '#722ed1'],
       series: [{
         type: 'pie',
         roseType: config.roseType || 'radius',
